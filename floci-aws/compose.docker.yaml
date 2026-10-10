@@ -1,0 +1,6 @@
+# Optional: permits the emulator to create runtime containers on the host engine.
+services:
+  floci-aws:
+    user: "0:0"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock

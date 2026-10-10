@@ -1,0 +1,25 @@
+name: floci-aws-service
+services:
+  floci-aws:
+    image: ${SERVICE_IMAGE:-floci/floci:latest}
+    ports:
+      - "127.0.0.1:${SERVICE_PORT:-4566}:4566"
+    environment:
+      FLOCI_STORAGE_MODE: persistent
+      FLOCI_STORAGE_PERSISTENT_PATH: /app/data
+      FLOCI_SERVICES_DOCKER_NETWORK: dev-services
+      FLOCI_DOCKER_RESOURCE_NAMESPACE: floci-aws
+      FLOCI_BASE_URL: http://localhost:${SERVICE_PORT:-4566}
+      FLOCI_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-east-1}
+    volumes:
+      - data:/app/data
+    networks:
+      services:
+        aliases: [floci-aws]
+    restart: unless-stopped
+volumes:
+  data:
+networks:
+  services:
+    external: true
+    name: dev-services

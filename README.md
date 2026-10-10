@@ -220,3 +220,14 @@ For MySQL/PostgreSQL, credentials are initialized only for fresh data volumes.
 Editing `.env` does not rotate existing credentials. SQL Server and RabbitMQ
 launch scripts synchronize developer credentials; Redis reads them at startup. Service READMEs
 explain password changes, persistence, connection details, and SQL Server setup.
+
+## MongoDB and local cloud emulators
+
+| Folder | Local endpoint | Purpose |
+| --- | --- | --- |
+| [mongodb](mongodb/README.md) | localhost:27017 | MongoDB; developer root administrator |
+| [floci-aws](floci-aws/README.md) | localhost:4566 | Local AWS APIs |
+| [floci-azure](floci-azure/README.md) | localhost:4577 | Local Azure APIs |
+| [floci-gcp](floci-gcp/README.md) | localhost:4588 | Local GCP APIs |
+
+Run `./start.sh` in each folder. These services share `dev-services` with the other database services and persist state in named volumes. Each README explains client configuration. Floci uses local cloud SDK identities rather than database administrator accounts. Its optional `./start.sh --docker` mode enables runtime containers through the host Docker engine; see the security implications in each README. Use these services on your local machine only.

@@ -1,0 +1,27 @@
+name: mongodb-service
+services:
+  mongodb:
+    image: ${SERVICE_IMAGE:-mongo:8}
+    ports:
+      - "127.0.0.1:${SERVICE_PORT:-27017}:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: developer
+      MONGO_INITDB_ROOT_PASSWORD: ${DEVELOPER_PASSWORD:?Run ./start.sh first}
+    volumes:
+      - data:/data/db
+    networks:
+      services:
+        aliases: [mongodb]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "const a=db.getSiblingDB('admin'); a.auth(process.env.MONGO_INITDB_ROOT_USERNAME,process.env.MONGO_INITDB_ROOT_PASSWORD); a.runCommand({ping:1})"]
+      interval: 10s
+      timeout: 10s
+      start_period: 30s
+      retries: 12
+    restart: unless-stopped
+volumes:
+  data:
+networks:
+  services:
+    external: true
+    name: dev-services
