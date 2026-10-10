@@ -1,0 +1,30 @@
+name: mysql-service
+services:
+  mysql:
+    image: ${SERVICE_IMAGE:-mysql:9}
+    ports:
+      - "127.0.0.1:${SERVICE_PORT:-3306}:3306"
+    environment:
+      MYSQL_DATABASE: app
+      MYSQL_USER: developer
+      MYSQL_PASSWORD: ${DEVELOPER_PASSWORD:?Run ./start.sh first}
+      MYSQL_ROOT_PASSWORD: ${ROOT_PASSWORD:?Run ./start.sh first}
+    volumes:
+      - data:/var/lib/mysql
+      - ./init:/docker-entrypoint-initdb.d:ro
+    networks:
+      services:
+        aliases: [mysql]
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_PASSWORD mysql --protocol=TCP -h 127.0.0.1 -u developer -D app -e 'SELECT 1' >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 12
+    restart: unless-stopped
+volumes:
+  data:
+networks:
+  services:
+    external: true
+    name: dev-services

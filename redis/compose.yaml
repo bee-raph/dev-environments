@@ -1,0 +1,28 @@
+name: redis-service
+services:
+  redis:
+    image: ${SERVICE_IMAGE:-redis:8}
+    entrypoint: ["sh", "/usr/local/bin/developer-entrypoint"]
+    ports:
+      - "127.0.0.1:${SERVICE_PORT:-6379}:6379"
+    environment:
+      DEVELOPER_PASSWORD: ${DEVELOPER_PASSWORD:?Run ./start.sh first}
+    volumes:
+      - data:/data
+      - ./entrypoint.sh:/usr/local/bin/developer-entrypoint:ro
+    networks:
+      services:
+        aliases: [redis]
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$DEVELOPER_PASSWORD redis-cli --user developer ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 12
+    restart: unless-stopped
+volumes:
+  data:
+networks:
+  services:
+    external: true
+    name: dev-services

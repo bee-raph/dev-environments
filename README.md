@@ -4,7 +4,7 @@ Ready-to-use development workspaces for .NET, Java, Python, Rust, Go, Node.js,
 and C/C++. Each stack lives in its own folder and runs in a separate Docker
 container, keeping its SDKs, compilers, editors, and dependencies off your host.
 
-Every environment includes Git, Git LFS, a browser-based VS Code editor
+Every language environment includes Git, Git LFS, a browser-based VS Code editor
 (code-server), and configuration for connecting desktop Microsoft VS Code.
 You can run environments independently or alongside one another.
 
@@ -125,9 +125,9 @@ For example, a Node.js application that reads `PORT` can be launched with
 `npm run dev -- --host 0.0.0.0 --port 5173` and open the host frontend port
 listed above. Container port 8080 is reserved for the editor.
 
-No database server is included. Add database containers separately and connect
-them to the environment's Compose network when needed; containers on that
-network can use service names as connection hosts.
+Infrastructure services are available in separate folders; see the section below.
+They share the `dev-services` network and can be connected to development
+containers without combining their lifecycles.
 
 ## Configure Git
 
@@ -184,3 +184,39 @@ manually are lost on replacement; add permanent tools to the Dockerfile.
 or debugger ports to the internet or an untrusted network. These configurations
 are development workspaces and are not designed for shared or production hosting.
 Rust, Go, and C/C++ containers enable `SYS_PTRACE` to support debugging.
+
+## Database and messaging services
+
+Each service folder contains Compose configuration, a launch script, an example
+configuration and service-specific documentation. These run independently of
+the language environments and retain their data in named volumes.
+
+| Folder | Host endpoint | Developer permissions |
+| --- | --- | --- |
+| [mysql](mysql/README.md) | localhost:3306 | Global administrator with grant rights |
+| [postgresql](postgresql/README.md) | localhost:5432 | Superuser |
+| [sqlserver](sqlserver/README.md) | localhost:1433 | sysadmin; x64 Developer edition |
+| [redis](redis/README.md) | localhost:6379 | All commands, keys and channels |
+| [rabbitmq](rabbitmq/README.md) | localhost:5672; UI localhost:15672 | Administrator and full resource access |
+
+Run `./start.sh` inside a service folder. The script creates `.env` with generated
+credentials, creates the shared `dev-services` network, and waits for readiness.
+Every service uses username **developer** and stores its password under
+`DEVELOPER_PASSWORD` in its own `.env`. MySQL and SQL Server also store separate
+bootstrap administrator passwords. Actual `.env` files are excluded from Git.
+
+To connect a running language environment, run this from its folder:
+
+```sh
+docker network connect dev-services "$(docker compose ps -q dev)"
+```
+
+Connect applications using the service hostname (`mysql`, `postgresql`,
+`sqlserver`, `redis`, or `rabbitmq`) and its standard port. Repeat the network
+attachment when recreating the development container, or declare `dev-services`
+as an external network in that environment's Compose configuration.
+
+For MySQL/PostgreSQL, credentials are initialized only for fresh data volumes.
+Editing `.env` does not rotate existing credentials. SQL Server and RabbitMQ
+launch scripts synchronize developer credentials; Redis reads them at startup. Service READMEs
+explain password changes, persistence, connection details, and SQL Server setup.

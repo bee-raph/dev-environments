@@ -1,0 +1,28 @@
+name: postgresql-service
+services:
+  postgresql:
+    image: ${SERVICE_IMAGE:-postgres:18}
+    ports:
+      - "127.0.0.1:${SERVICE_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: developer
+      POSTGRES_PASSWORD: ${DEVELOPER_PASSWORD:?Run ./start.sh first}
+    volumes:
+      - data:/var/lib/postgresql
+    networks:
+      services:
+        aliases: [postgresql]
+    healthcheck:
+      test: ["CMD-SHELL", "PGPASSWORD=$$POSTGRES_PASSWORD psql -h 127.0.0.1 -U developer -d app -c 'SELECT 1' >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 12
+    restart: unless-stopped
+volumes:
+  data:
+networks:
+  services:
+    external: true
+    name: dev-services

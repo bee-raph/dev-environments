@@ -1,0 +1,40 @@
+name: sqlserver-service
+services:
+  sqlserver:
+    image: ${SERVICE_IMAGE:-mcr.microsoft.com/mssql/server:2025-latest}
+    platform: linux/amd64
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD:?Run ./start.sh first}
+    ports:
+      - "127.0.0.1:${SERVICE_PORT:-1433}:1433"
+    volumes:
+      - data:/var/opt/mssql
+    networks:
+      services:
+        aliases: [sqlserver]
+    healthcheck:
+      test: ["CMD-SHELL", "SQLCMDPASSWORD=$$MSSQL_SA_PASSWORD /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -Q 'SELECT 1' >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 18
+    restart: unless-stopped
+  init:
+    image: ${SERVICE_IMAGE:-mcr.microsoft.com/mssql/server:2025-latest}
+    platform: linux/amd64
+    profiles: [tools]
+    entrypoint: ["/bin/bash", "/init/create-developer.sh"]
+    environment:
+      SQLCMDPASSWORD: ${SA_PASSWORD:?Run ./start.sh first}
+      DEVELOPER_PASSWORD: ${DEVELOPER_PASSWORD:?Run ./start.sh first}
+    volumes:
+      - ./create-developer.sh:/init/create-developer.sh:ro
+    networks: [services]
+volumes:
+  data:
+networks:
+  services:
+    external: true
+    name: dev-services

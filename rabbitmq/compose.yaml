@@ -1,0 +1,31 @@
+name: rabbitmq-service
+services:
+  rabbitmq:
+    image: ${SERVICE_IMAGE:-rabbitmq:4-management}
+    hostname: rabbitmq
+    ports:
+      - "127.0.0.1:${SERVICE_PORT:-5672}:5672"
+      - "127.0.0.1:${MANAGEMENT_PORT:-15672}:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: developer
+      RABBITMQ_DEFAULT_PASS: ${DEVELOPER_PASSWORD:?Run ./start.sh first}
+      RABBITMQ_DEFAULT_VHOST: /
+    volumes:
+      - data:/var/lib/rabbitmq
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    networks:
+      services:
+        aliases: [rabbitmq]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 12
+    restart: unless-stopped
+volumes:
+  data:
+networks:
+  services:
+    external: true
+    name: dev-services
