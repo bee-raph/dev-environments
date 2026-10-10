@@ -21,11 +21,11 @@ You can run environments independently or alongside one another.
 
 ```sh
 git clone https://github.com/bee-raph/dev-environments.git
-cd dev-environments/python
+cd dev-environments/dev/python
 ./start.sh
 ```
 
-Choose any environment folder instead of `python`. On Windows, use WSL or a
+Choose any environment folder under `dev/` instead of `python`. On Windows, use WSL or a
 Bash-compatible shell for the launch script. Alternatively, configure `.env`
 from `.env.example`, then run `docker compose up -d --build --wait`.
 
@@ -38,13 +38,13 @@ layers and persistent caches.
 
 | Folder | Main tools | Browser editor | Application host port | Frontend host port |
 | --- | --- | --- | --- | --- |
-| [dotnet](dotnet/README.md) | .NET 10 SDK, ASP.NET Core, EF CLI, Node.js | [8080](http://localhost:8080) | 5000 | 5173 |
-| [java](java/README.md) | JDK 27, Maven, Gradle, Node.js | [8082](http://localhost:8082) | 8081 | 5174 |
-| [python](python/README.md) | Python 3.14, uv, pytest, Ruff, mypy | [8083](http://localhost:8083) | 8000 | 5175 |
-| [rust](rust/README.md) | Stable Rust, Cargo, rustfmt, Clippy | [8084](http://localhost:8084) | 8001 | 5176 |
-| [go](go/README.md) | Go 1.27, gopls, Delve, Staticcheck | [8085](http://localhost:8085) | 8002 | 5177 |
-| [nodejs](nodejs/README.md) | Node.js 26, npm, pnpm, Yarn, TypeScript | [8086](http://localhost:8086) | 3000 | 5178 |
-| [cpp](cpp/README.md) | GCC, Clang, CMake, Ninja, GDB/LLDB, Conan | [8087](http://localhost:8087) | 8003 | 5179 |
+| [dev/dotnet](dev/dotnet/README.md) | .NET 10 SDK, ASP.NET Core, EF CLI, Node.js | [8080](http://localhost:8080) | 5000 | 5173 |
+| [dev/java](dev/java/README.md) | JDK 27, Maven, Gradle, Node.js | [8082](http://localhost:8082) | 8081 | 5174 |
+| [dev/python](dev/python/README.md) | Python 3.14, uv, pytest, Ruff, mypy | [8083](http://localhost:8083) | 8000 | 5175 |
+| [dev/rust](dev/rust/README.md) | Stable Rust, Cargo, rustfmt, Clippy | [8084](http://localhost:8084) | 8001 | 5176 |
+| [dev/go](dev/go/README.md) | Go 1.27, gopls, Delve, Staticcheck | [8085](http://localhost:8085) | 8002 | 5177 |
+| [dev/nodejs](dev/nodejs/README.md) | Node.js 26, npm, pnpm, Yarn, TypeScript | [8086](http://localhost:8086) | 3000 | 5178 |
+| [dev/cpp](dev/cpp/README.md) | GCC, Clang, CMake, Ninja, GDB/LLDB, Conan | [8087](http://localhost:8087) | 8003 | 5179 |
 
 See each environment's README for the complete tool list and stack-specific commands.
 Java also publishes debugger port 5005. Frontend port mappings are provided in
@@ -52,7 +52,18 @@ all environments; Node.js tooling is bundled in .NET, Java, and Node.js.
 
 ## How the folders work
 
-Each environment contains:
+The repository is organized by environment type:
+
+```text
+dev/        Language development environments: dotnet, java, python, rust, go, nodejs, cpp
+services/   Databases and messaging: mysql, postgresql, sqlserver, redis, rabbitmq, mongodb
+cloud/      Cloud emulators: floci-aws, floci-azure, floci-gcp
+```
+
+Run `./start.sh` inside the individual environment folder, such as
+`dev/python`, `services/mongodb`, or `cloud/floci-aws`.
+
+Each language environment contains:
 
 ```text
 Dockerfile                    SDKs, tools, editor and bundled extensions
@@ -83,7 +94,7 @@ when creating `.env`, allowing writes to the source mount.
 1. Start the desired environment using its `./start.sh`.
 2. Install Microsoft VS Code on the host and install **Dev Containers**
    (`ms-vscode-remote.remote-containers`).
-3. Open the environment folder, such as `dev-environments/python`, in VS Code.
+3. Open the environment folder, such as `dev-environments/dev/python`, in VS Code.
    Open the folder containing `.devcontainer`, rather than only `src`.
 4. Open the Command Palette and select **Dev Containers: Reopen in Container**.
 5. VS Code connects to the Compose `dev` service and opens `/workspace/src`.
@@ -187,17 +198,18 @@ Rust, Go, and C/C++ containers enable `SYS_PTRACE` to support debugging.
 
 ## Database and messaging services
 
-Each service folder contains Compose configuration, a launch script, an example
+Each folder under `services/` contains Compose configuration, a launch script, an example
 configuration and service-specific documentation. These run independently of
 the language environments and retain their data in named volumes.
 
 | Folder | Host endpoint | Developer permissions |
 | --- | --- | --- |
-| [mysql](mysql/README.md) | localhost:3306 | Global administrator with grant rights |
-| [postgresql](postgresql/README.md) | localhost:5432 | Superuser |
-| [sqlserver](sqlserver/README.md) | localhost:1433 | sysadmin; x64 Developer edition |
-| [redis](redis/README.md) | localhost:6379 | All commands, keys and channels |
-| [rabbitmq](rabbitmq/README.md) | localhost:5672; UI localhost:15672 | Administrator and full resource access |
+| [services/mysql](services/mysql/README.md) | localhost:3306 | Global administrator with grant rights |
+| [services/postgresql](services/postgresql/README.md) | localhost:5432 | Superuser |
+| [services/sqlserver](services/sqlserver/README.md) | localhost:1433 | sysadmin; x64 Developer edition |
+| [services/redis](services/redis/README.md) | localhost:6379 | All commands, keys and channels |
+| [services/rabbitmq](services/rabbitmq/README.md) | localhost:5672; UI localhost:15672 | Administrator and full resource access |
+| [services/mongodb](services/mongodb/README.md) | localhost:27017 | Root administrator |
 
 Run `./start.sh` inside a service folder. The script creates `.env` with generated
 credentials, creates the shared `dev-services` network, and waits for readiness.
@@ -212,22 +224,21 @@ docker network connect dev-services "$(docker compose ps -q dev)"
 ```
 
 Connect applications using the service hostname (`mysql`, `postgresql`,
-`sqlserver`, `redis`, or `rabbitmq`) and its standard port. Repeat the network
+`sqlserver`, `redis`, `rabbitmq`, or `mongodb`) and its standard port. Repeat the network
 attachment when recreating the development container, or declare `dev-services`
 as an external network in that environment's Compose configuration.
 
-For MySQL/PostgreSQL, credentials are initialized only for fresh data volumes.
+For MySQL/PostgreSQL/MongoDB, credentials are initialized only for fresh data volumes.
 Editing `.env` does not rotate existing credentials. SQL Server and RabbitMQ
 launch scripts synchronize developer credentials; Redis reads them at startup. Service READMEs
 explain password changes, persistence, connection details, and SQL Server setup.
 
-## MongoDB and local cloud emulators
+## Local cloud emulators
 
 | Folder | Local endpoint | Purpose |
 | --- | --- | --- |
-| [mongodb](mongodb/README.md) | localhost:27017 | MongoDB; developer root administrator |
-| [floci-aws](floci-aws/README.md) | localhost:4566 | Local AWS APIs |
-| [floci-azure](floci-azure/README.md) | localhost:4577 | Local Azure APIs |
-| [floci-gcp](floci-gcp/README.md) | localhost:4588 | Local GCP APIs |
+| [cloud/floci-aws](cloud/floci-aws/README.md) | localhost:4566 | Local AWS APIs |
+| [cloud/floci-azure](cloud/floci-azure/README.md) | localhost:4577 | Local Azure APIs |
+| [cloud/floci-gcp](cloud/floci-gcp/README.md) | localhost:4588 | Local GCP APIs |
 
-Run `./start.sh` in each folder. These services share `dev-services` with the other database services and persist state in named volumes. Each README explains client configuration. Floci uses local cloud SDK identities rather than database administrator accounts. Its optional `./start.sh --docker` mode enables runtime containers through the host Docker engine; see the security implications in each README. Use these services on your local machine only.
+Run `./start.sh` in each folder under `cloud/`. These emulators share `dev-services` with the other database services and persist state in named volumes. Each README explains client configuration. Floci uses local cloud SDK identities rather than database administrator accounts. Its optional `./start.sh --docker` mode enables runtime containers through the host Docker engine; see the security implications in each README. Use these services on your local machine only.

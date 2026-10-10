@@ -1,4 +1,4 @@
-# redis local development service
+# sqlserver local development service
 
 ## Launch and credentials
 
@@ -13,19 +13,26 @@ launch. Use account **developer** and `DEVELOPER_PASSWORD` from that file.
 `.env` is excluded from Git. Copy `.env.example` to `.env` and replace the
 placeholders if you prefer to configure credentials and ports yourself.
 
-Permissions: ACL user with every command, every key and every Pub/Sub channel allowed.
+Permissions: SQL login in the sysadmin server role; SQL Server Developer edition.
 
-Connect from your host at `localhost:6379`. The service publishes only on
+Connect from your host at `localhost:1433`. The service publishes only on
 localhost and retains its data in a named Docker volume.
 
-Use Redis ACL authentication with username `developer`, rather than only a
-password. AOF persistence is enabled. The startup script derives an ACL password
-hash from `.env` each time; changing the password and recreating the container
-applies it. The default Redis account is disabled.
+Default application database: **app**.
 
-```sh
-docker compose exec redis sh -c 'REDISCLI_AUTH="$DEVELOPER_PASSWORD" redis-cli --user developer ping'
-```
+A separate `sa` bootstrap password is stored as `SA_PASSWORD`. `start.sh` waits
+for SQL Server, then runs the initializer to create/update developer and grant
+sysadmin. Run `start.sh`, rather than only `docker compose up`, to configure
+that login. Initialization is idempotent; subsequent runs update its password.
+Use encryption and trust the development server certificate in your client
+(for example, `Encrypt=True;TrustServerCertificate=True`).
+
+The image is forced to `linux/amd64`. On Apple Silicon it requires x64 emulation
+and may be slower or fail on unsupported Docker configurations. Allocate at
+least 2 GB for SQL Server and sufficient Docker memory for all active services.
+Starting the service accepts Microsoft's SQL Server EULA; Developer edition is
+for development/test use. See Microsoft's container documentation:
+https://learn.microsoft.com/sql/linux/sql-server-linux-docker-container-deployment.
 
 ## Connect from a development container
 
@@ -33,11 +40,11 @@ All service launch scripts create/use the shared Docker network `dev-services`.
 Connect a running development container once:
 
 ```sh
-# Run from your language environment folder, e.g. ../dotnet:
+# Run from your language environment folder, e.g. ../../dev/dotnet:
 docker network connect dev-services "$(docker compose ps -q dev)"
 ```
 
-Your application can then connect to hostname **redis**, port **6379**, and
+Your application can then connect to hostname **sqlserver**, port **1433**, and
 authenticate as `developer` with the password in this service's `.env`.
 Use service names inside containers: `localhost` there refers to the development
 container itself. The manual network attachment must be repeated after recreating
@@ -47,7 +54,7 @@ network to its Compose configuration and attach its `dev` service to it.
 ## Manage and data lifecycle
 
 ```sh
-docker compose logs -f redis
+docker compose logs -f sqlserver
 docker compose stop
 ./start.sh
 docker compose down

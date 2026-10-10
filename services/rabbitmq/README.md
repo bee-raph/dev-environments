@@ -28,7 +28,7 @@ All service launch scripts create/use the shared Docker network `dev-services`.
 Connect a running development container once:
 
 ```sh
-# Run from your language environment folder, e.g. ../dotnet:
+# Run from your language environment folder, e.g. ../../dev/dotnet:
 docker network connect dev-services "$(docker compose ps -q dev)"
 ```
 
