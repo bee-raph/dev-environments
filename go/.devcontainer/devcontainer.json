@@ -1,0 +1,22 @@
+{
+  "name": "Go development",
+  "dockerComposeFile": "../compose.yaml",
+  "service": "dev",
+  "workspaceFolder": "/workspace/src",
+  "remoteUser": "developer",
+  "updateRemoteUserUID": false,
+  "overrideCommand": false,
+  "shutdownAction": "none",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "EditorConfig.EditorConfig",
+        "humao.rest-client"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  }
+}
