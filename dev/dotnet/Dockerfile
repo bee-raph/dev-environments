@@ -25,13 +25,15 @@ RUN if id ubuntu >/dev/null 2>&1; then userdel ubuntu; fi \
     && groupadd --gid ${DEV_GID} developer \
     && useradd --uid ${DEV_UID} --gid ${DEV_GID} --create-home --shell /bin/bash developer
 ENV HOME=/home/developer \
+    CODEX_HOME=/home/developer/.config/codex \
+    CLAUDE_CONFIG_DIR=/home/developer/.config/claude \
     GIT_CONFIG_GLOBAL=/home/developer/.config/git/config \
     DOTNET_CLI_TELEMETRY_OPTOUT=1 \
     DOTNET_NOLOGO=1 \
     DOTNET_USE_POLLING_FILE_WATCHER=1 \
     ASPNETCORE_ENVIRONMENT=Development \
     ASPNETCORE_URLS=http://0.0.0.0:5000 \
-    PATH=/opt/dotnet-tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    PATH=/home/developer/.local/bin:/opt/dotnet-tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 RUN dotnet tool install dotnet-ef --tool-path /opt/dotnet-tools --version '10.*' \
     && dotnet tool install dotnet-outdated-tool --tool-path /opt/dotnet-tools \
     && mkdir -p /opt/editor-extensions /workspace/src \
@@ -39,6 +41,14 @@ RUN dotnet tool install dotnet-ef --tool-path /opt/dotnet-tools --version '10.*'
        /home/developer/.npm /home/developer/.config \
     && chown -R developer:developer /home/developer /workspace /opt/editor-extensions
 USER developer
+# Install the native AI CLIs as developer; keep binaries outside mounted settings.
+RUN curl -fsSL https://claude.ai/install.sh -o /tmp/install-claude.sh \
+    && bash /tmp/install-claude.sh stable \
+    && rm /tmp/install-claude.sh \
+    && curl -fsSL https://chatgpt.com/codex/install.sh -o /tmp/install-codex.sh \
+    && CODEX_HOME=/home/developer/.local/share/codex-install sh /tmp/install-codex.sh \
+    && rm /tmp/install-codex.sh \
+    && claude --version && codex --version
 RUN code-server --extensions-dir /opt/editor-extensions \
       --install-extension muhammad-sammy.csharp \
     && code-server --extensions-dir /opt/editor-extensions \

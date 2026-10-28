@@ -15,15 +15,25 @@ RUN if id ubuntu >/dev/null 2>&1; then userdel ubuntu; fi \
     && groupadd --gid ${DEV_GID} developer \
     && useradd --uid ${DEV_UID} --gid ${DEV_GID} --create-home --shell /bin/bash developer
 ENV HOME=/home/developer \
+    CODEX_HOME=/home/developer/.config/codex \
+    CLAUDE_CONFIG_DIR=/home/developer/.config/claude \
     GIT_CONFIG_GLOBAL=/home/developer/.config/git/config \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PATH=/opt/devtools/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    PATH=/home/developer/.local/bin:/opt/devtools/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 RUN python -m venv /opt/devtools && /opt/devtools/bin/pip install --no-cache-dir --upgrade pip uv pytest ruff mypy debugpy ipython build
 RUN mkdir -p /opt/editor-extensions /workspace/src /home/developer/.local/share/code-server \
     /home/developer/.config/git /home/developer/.cache/pip /home/developer/.cache/uv \
     && chown -R developer:developer /home/developer /workspace /opt/editor-extensions
 USER developer
+# Install the native AI CLIs as developer; keep binaries outside mounted settings.
+RUN curl -fsSL https://claude.ai/install.sh -o /tmp/install-claude.sh \
+    && bash /tmp/install-claude.sh stable \
+    && rm /tmp/install-claude.sh \
+    && curl -fsSL https://chatgpt.com/codex/install.sh -o /tmp/install-codex.sh \
+    && CODEX_HOME=/home/developer/.local/share/codex-install sh /tmp/install-codex.sh \
+    && rm /tmp/install-codex.sh \
+    && claude --version && codex --version
 RUN code-server --extensions-dir /opt/editor-extensions --install-extension ms-python.python \
     && code-server --extensions-dir /opt/editor-extensions --install-extension ms-python.debugpy \
     && code-server --extensions-dir /opt/editor-extensions --install-extension charliermarsh.ruff \

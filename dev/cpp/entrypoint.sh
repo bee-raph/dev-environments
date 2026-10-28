@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
-mkdir -p "$HOME/.config/git"
+mkdir -p "$HOME/.config/git" "$CODEX_HOME" "$CLAUDE_CONFIG_DIR"
+chmod 700 "$CODEX_HOME" "$CLAUDE_CONFIG_DIR"
 # Seed extensions only once, so user additions and removals persist.
 data_dir="$HOME/.local/share/code-server"
 if [[ ! -f "$data_dir/.extensions-seeded" ]]; then

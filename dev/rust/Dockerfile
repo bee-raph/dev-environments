@@ -15,16 +15,26 @@ RUN if id ubuntu >/dev/null 2>&1; then userdel ubuntu; fi \
     && groupadd --gid ${DEV_GID} developer \
     && useradd --uid ${DEV_UID} --gid ${DEV_GID} --create-home --shell /bin/bash developer
 ENV HOME=/home/developer \
+    CODEX_HOME=/home/developer/.config/codex \
+    CLAUDE_CONFIG_DIR=/home/developer/.config/claude \
     GIT_CONFIG_GLOBAL=/home/developer/.config/git/config \
     CARGO_HOME=/home/developer/.cargo \
     RUSTUP_HOME=/usr/local/rustup \
-    PATH=/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    PATH=/home/developer/.local/bin:/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 RUN rustup component add rustfmt clippy rust-src rust-analyzer
 RUN mkdir -p /opt/editor-extensions /workspace/src /home/developer/.local/share/code-server \
     /home/developer/.config/git /home/developer/.cargo/registry /home/developer/.cargo/git \
     && chown -R developer:developer /home/developer /workspace /opt/editor-extensions
 RUN chown -R developer:developer /usr/local/rustup
 USER developer
+# Install the native AI CLIs as developer; keep binaries outside mounted settings.
+RUN curl -fsSL https://claude.ai/install.sh -o /tmp/install-claude.sh \
+    && bash /tmp/install-claude.sh stable \
+    && rm /tmp/install-claude.sh \
+    && curl -fsSL https://chatgpt.com/codex/install.sh -o /tmp/install-codex.sh \
+    && CODEX_HOME=/home/developer/.local/share/codex-install sh /tmp/install-codex.sh \
+    && rm /tmp/install-codex.sh \
+    && claude --version && codex --version
 RUN code-server --extensions-dir /opt/editor-extensions --install-extension rust-lang.rust-analyzer \
     && code-server --extensions-dir /opt/editor-extensions --install-extension vadimcn.vscode-lldb \
     && code-server --extensions-dir /opt/editor-extensions --install-extension tamasfe.even-better-toml \

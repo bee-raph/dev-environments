@@ -4,7 +4,8 @@ Ready-to-use development workspaces for .NET, Java, Python, Rust, Go, Node.js,
 and C/C++. Each stack lives in its own folder and runs in a separate Docker
 container, keeping its SDKs, compilers, editors, and dependencies off your host.
 
-Every language environment includes Git, Git LFS, a browser-based VS Code editor
+Every language environment includes Git, Git LFS, Claude Code CLI, OpenAI Codex CLI,
+a browser-based VS Code editor
 (code-server), and configuration for connecting desktop Microsoft VS Code.
 You can run environments independently or alongside one another.
 
@@ -242,3 +243,13 @@ explain password changes, persistence, connection details, and SQL Server setup.
 | [cloud/floci-gcp](cloud/floci-gcp/README.md) | localhost:4588 | Local GCP APIs |
 
 Run `./start.sh` in each folder under `cloud/`. These emulators share `dev-services` with the other database services and persist state in named volumes. Each README explains client configuration. Floci uses local cloud SDK identities rather than database administrator accounts. Its optional `./start.sh --docker` mode enables runtime containers through the host Docker engine; see the security implications in each README. Use these services on your local machine only.
+
+## AI coding assistants
+
+All seven environments under `dev/` include `claude` and `codex`. Start either from your project directory in the container terminal. For Codex, use `codex login --device-auth` and complete sign-in in your host browser; device-code login must be enabled for your account/workspace. For Claude Code, run `claude` and follow its sign-in instructions. Your own account or API access is required.
+
+AI configuration, sessions and file-based credentials persist separately for each environment in its existing `developer-config` volume, under `.config/claude` and `.config/codex`. Removing that volume deletes them. No account credentials are included in images or Git. Native binaries are installed as `developer`, outside mounted settings directories.
+
+After pulling these changes, rebuild your chosen environment with `docker compose build --no-cache`, then run `./start.sh`. This also refreshes installed CLI releases. CLI tools are available in both desktop VS Code and code-server terminals.
+
+Official installation and sign-in documentation: [Codex CLI](https://learn.chatgpt.com/docs/codex/cli), [Codex authentication](https://learn.chatgpt.com/docs/auth), and [Claude Code setup](https://code.claude.com/docs/en/setup).
