@@ -57,7 +57,7 @@ The repository is organized by environment type:
 
 ```text
 dev/        Language development environments: dotnet, java, python, rust, go, nodejs, cpp
-services/   Databases and messaging: mysql, postgresql, sqlserver, redis, rabbitmq, mongodb
+services/   Databases and messaging: mysql, postgresql, sqlserver, redis, rabbitmq, mongodb, kafka
 cloud/      Cloud emulators: floci-aws, floci-azure, floci-gcp
 ```
 
@@ -211,6 +211,7 @@ the language environments and retain their data in named volumes.
 | [services/redis](services/redis/README.md) | localhost:6379 | All commands, keys and channels |
 | [services/rabbitmq](services/rabbitmq/README.md) | localhost:5672; UI localhost:15672 | Administrator and full resource access |
 | [services/mongodb](services/mongodb/README.md) | localhost:27017 | Root administrator |
+| [services/kafka](services/kafka/README.md) | Kafka localhost:9092–9094; UI localhost:8090; schemas localhost:18081; Connect localhost:18083 | Developer administrator across the stack |
 
 Run `./start.sh` inside a service folder. The script creates `.env` with generated
 credentials, creates the shared `dev-services` network, and waits for readiness.
@@ -225,7 +226,7 @@ docker network connect dev-services "$(docker compose ps -q dev)"
 ```
 
 Connect applications using the service hostname (`mysql`, `postgresql`,
-`sqlserver`, `redis`, `rabbitmq`, or `mongodb`) and its standard port. Repeat the network
+`sqlserver`, `redis`, `rabbitmq`, `mongodb`, or `kafka`) and its standard port. Repeat the network
 attachment when recreating the development container, or declare `dev-services`
 as an external network in that environment's Compose configuration.
 
@@ -253,3 +254,7 @@ AI configuration, sessions and file-based credentials persist separately for eac
 After pulling these changes, rebuild your chosen environment with `docker compose build --no-cache`, then run `./start.sh`. This also refreshes installed CLI releases. CLI tools are available in both desktop VS Code and code-server terminals.
 
 Official installation and sign-in documentation: [Codex CLI](https://learn.chatgpt.com/docs/codex/cli), [Codex authentication](https://learn.chatgpt.com/docs/auth), and [Claude Code setup](https://code.claude.com/docs/en/setup).
+
+## Kafka stack
+
+`services/kafka` provides three replicated KRaft brokers, Kafbat UI, a Karapace schema registry, and Kafka Connect. Run `./start.sh` in that folder, then open http://localhost:8090 and sign in as `developer` using its generated `.env` password. Host clients use `localhost:9092,localhost:9093,localhost:9094`; development containers on `dev-services` use `kafka:9092,kafka-2:9092,kafka-3:9092`. All brokers require SASL/PLAIN credentials. The [Kafka README](services/kafka/README.md) covers schemas, connectors, .NET client settings, persistence, security, and the included `./smoke-test.sh`.

@@ -1,0 +1,199 @@
+name: kafka-service
+x-broker-environment: &broker-environment
+  CLUSTER_ID: ${KAFKA_CLUSTER_ID:?Run ./start.sh first}
+  DEVELOPER_PASSWORD: ${DEVELOPER_PASSWORD:?Run ./start.sh first}
+  KAFKA_PROCESS_ROLES: broker,controller
+  KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9095,2@kafka-2:9095,3@kafka-3:9095
+  KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:29092,CONTROLLER://:9095
+  KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:SASL_PLAINTEXT,EXTERNAL:SASL_PLAINTEXT,CONTROLLER:SASL_PLAINTEXT
+  KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+  KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+  KAFKA_SASL_ENABLED_MECHANISMS: PLAIN
+  KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL: PLAIN
+  KAFKA_SASL_MECHANISM_CONTROLLER_PROTOCOL: PLAIN
+  KAFKA_OPTS: -Djava.security.auth.login.config=/tmp/kafka-jaas.conf
+  KAFKA_AUTHORIZER_CLASS_NAME: org.apache.kafka.metadata.authorizer.StandardAuthorizer
+  KAFKA_SUPER_USERS: User:developer
+  KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: "false"
+  KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+  KAFKA_MIN_INSYNC_REPLICAS: 2
+  KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+  KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+  KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+  KAFKA_NUM_PARTITIONS: 3
+  KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+  KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+  KAFKA_LOG_DIRS: /var/lib/kafka/data
+  KAFKA_LOG_RETENTION_HOURS: 168
+  KAFKA_HEAP_OPTS: -Xms256m -Xmx512m
+x-broker: &broker
+  image: ${KAFKA_IMAGE:-apache/kafka:4.4.0}
+  entrypoint: ["/bin/bash", "/opt/local/broker.sh"]
+  healthcheck:
+    test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --command-config /tmp/client.properties --list >/dev/null"]
+    interval: 15s
+    timeout: 15s
+    start_period: 45s
+    retries: 15
+  restart: unless-stopped
+services:
+  init:
+    image: ${KAFKA_IMAGE:-apache/kafka:4.4.0}
+    profiles: [tools]
+    user: "0:0"
+    network_mode: none
+    entrypoint: ["/bin/bash", "-ec", "chown -R 1000:1000 /data/one /data/two /data/three /data/connect"]
+    volumes:
+      - broker-1-data:/data/one
+      - broker-2-data:/data/two
+      - broker-3-data:/data/three
+      - connect-data:/data/connect
+  kafka:
+    <<: *broker
+    hostname: kafka
+    environment:
+      <<: *broker-environment
+      KAFKA_NODE_ID: 1
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:${KAFKA_PORT:-9092}
+    ports:
+      - "127.0.0.1:${KAFKA_PORT:-9092}:29092"
+    volumes:
+      - broker-1-data:/var/lib/kafka/data
+      - ./broker.sh:/opt/local/broker.sh:ro
+    networks:
+      services:
+        aliases: [kafka]
+  kafka-2:
+    <<: *broker
+    hostname: kafka-2
+    environment:
+      <<: *broker-environment
+      KAFKA_NODE_ID: 2
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-2:9092,EXTERNAL://localhost:${KAFKA_2_PORT:-9093}
+    ports:
+      - "127.0.0.1:${KAFKA_2_PORT:-9093}:29092"
+    volumes:
+      - broker-2-data:/var/lib/kafka/data
+      - ./broker.sh:/opt/local/broker.sh:ro
+    networks:
+      services:
+        aliases: [kafka-2]
+  kafka-3:
+    <<: *broker
+    hostname: kafka-3
+    environment:
+      <<: *broker-environment
+      KAFKA_NODE_ID: 3
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-3:9092,EXTERNAL://localhost:${KAFKA_3_PORT:-9094}
+    ports:
+      - "127.0.0.1:${KAFKA_3_PORT:-9094}:29092"
+    volumes:
+      - broker-3-data:/var/lib/kafka/data
+      - ./broker.sh:/opt/local/broker.sh:ro
+    networks:
+      services:
+        aliases: [kafka-3]
+  kafka-connect:
+    image: ${KAFKA_IMAGE:-apache/kafka:4.4.0}
+    entrypoint: ["/bin/bash", "/opt/local/connect.sh"]
+    environment:
+      DEVELOPER_PASSWORD: ${DEVELOPER_PASSWORD:?Run ./start.sh first}
+      KAFKA_HEAP_OPTS: -Xms128m -Xmx512m
+    depends_on: &healthy-brokers
+      kafka: {condition: service_healthy}
+      kafka-2: {condition: service_healthy}
+      kafka-3: {condition: service_healthy}
+    ports:
+      - "127.0.0.1:${CONNECT_PORT:-18083}:8083"
+    volumes:
+      - ./connect.sh:/opt/local/connect.sh:ro
+      - ./http-health.sh:/opt/local/http-health.sh:ro
+      - ./plugins:/opt/kafka/plugins:ro
+      - connect-data:/data
+    networks:
+      services:
+        aliases: [kafka-connect]
+    healthcheck:
+      test: ["CMD", "/bin/bash", "/opt/local/http-health.sh"]
+      interval: 15s
+      timeout: 10s
+      start_period: 45s
+      retries: 15
+    restart: unless-stopped
+  schema-registry:
+    image: ${SCHEMA_REGISTRY_IMAGE:-ghcr.io/aiven-open/karapace:latest}
+    entrypoint: ["python3", "/opt/local/registry.py"]
+    environment:
+      DEVELOPER_PASSWORD: ${DEVELOPER_PASSWORD:?Run ./start.sh first}
+      KARAPACE_KARAPACE_REGISTRY: "true"
+      KARAPACE_KARAPACE_REST: "false"
+      KARAPACE_BOOTSTRAP_URI: kafka:9092,kafka-2:9092,kafka-3:9092
+      KARAPACE_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      KARAPACE_SASL_MECHANISM: PLAIN
+      KARAPACE_SASL_PLAIN_USERNAME: developer
+      KARAPACE_SASL_PLAIN_PASSWORD: ${DEVELOPER_PASSWORD:?Run ./start.sh first}
+      KARAPACE_HOST: 0.0.0.0
+      KARAPACE_PORT: 8081
+      KARAPACE_ADVERTISED_HOSTNAME: schema-registry
+      KARAPACE_REPLICATION_FACTOR: 3
+      KARAPACE_TOPIC_NAME: _schemas
+      KARAPACE_REGISTRY_AUTHFILE: /tmp/registry-auth.json
+      KARAPACE_LOG_LEVEL: INFO
+    depends_on: *healthy-brokers
+    ports:
+      - "127.0.0.1:${SCHEMA_REGISTRY_PORT:-18081}:8081"
+    volumes:
+      - ./registry.py:/opt/local/registry.py:ro
+      - ./smoke-http.py:/opt/local/smoke-http.py:ro
+    networks:
+      services:
+        aliases: [schema-registry]
+    healthcheck:
+      test: ["CMD", "python3", "/opt/local/registry.py", "health"]
+      interval: 15s
+      timeout: 20s
+      start_period: 45s
+      retries: 15
+    restart: unless-stopped
+  kafka-ui:
+    image: ${KAFKA_UI_IMAGE:-ghcr.io/kafbat/kafka-ui:latest}
+    environment:
+      AUTH_TYPE: LOGIN_FORM
+      SPRING_SECURITY_USER_NAME: developer
+      SPRING_SECURITY_USER_PASSWORD: ${DEVELOPER_PASSWORD:?Run ./start.sh first}
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092,kafka-2:9092,kafka-3:9092
+      KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM: PLAIN
+      KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG: 'org.apache.kafka.common.security.plain.PlainLoginModule required username="developer" password="${DEVELOPER_PASSWORD:?Run ./start.sh first}";'
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRYAUTH_USERNAME: developer
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRYAUTH_PASSWORD: ${DEVELOPER_PASSWORD:?Run ./start.sh first}
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: local-connect
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://kafka-connect:8083
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_USERNAME: developer
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_PASSWORD: ${DEVELOPER_PASSWORD:?Run ./start.sh first}
+      JAVA_OPTS: -Xms128m -Xmx512m
+    depends_on:
+      kafka: {condition: service_healthy}
+      schema-registry: {condition: service_healthy}
+      kafka-connect: {condition: service_healthy}
+    ports:
+      - "127.0.0.1:${UI_PORT:-8090}:8080"
+    networks: [services]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/actuator/health"]
+      interval: 15s
+      timeout: 10s
+      start_period: 45s
+      retries: 15
+    restart: unless-stopped
+volumes:
+  broker-1-data:
+  broker-2-data:
+  broker-3-data:
+  connect-data:
+networks:
+  services:
+    external: true
+    name: dev-services
