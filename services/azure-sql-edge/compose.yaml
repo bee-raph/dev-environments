@@ -1,0 +1,47 @@
+name: azure-sql-edge-service
+services:
+  azure-sql-edge:
+    image: azure-sql-edge-dev:local
+    build:
+      context: .
+      args:
+        SERVICE_IMAGE: ${SERVICE_IMAGE:-mcr.microsoft.com/azure-sql-edge:latest}
+        SQLCMD_VERSION: ${SQLCMD_VERSION:-1.10.0}
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      # Legacy SQL Edge certificates can have a negative serial number.
+      GODEBUG: x509negativeserial=1
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD:?Run ./start.sh first}
+      MSSQL_MEMORY_LIMIT_MB: ${MEMORY_LIMIT_MB:-2048}
+    ports:
+      - "127.0.0.1:${SERVICE_PORT:-1434}:1433"
+    volumes:
+      - data:/var/opt/mssql
+    networks:
+      services:
+        aliases: [azure-sql-edge]
+    healthcheck:
+      test: ["CMD-SHELL", "SQLCMDPASSWORD=$$MSSQL_SA_PASSWORD /usr/local/bin/sqlcmd -S localhost -U sa -C -b -Q 'SELECT 1' >/dev/null"]
+      interval: 10s
+      timeout: 10s
+      start_period: 60s
+      retries: 18
+    restart: unless-stopped
+  init:
+    image: azure-sql-edge-dev:local
+    profiles: [tools]
+    entrypoint: ["/bin/bash", "/init/create-developer.sh"]
+    environment:
+      GODEBUG: x509negativeserial=1
+      SQLCMDPASSWORD: ${SA_PASSWORD:?Run ./start.sh first}
+      DEVELOPER_PASSWORD: ${DEVELOPER_PASSWORD:?Run ./start.sh first}
+    volumes:
+      - ./create-developer.sh:/init/create-developer.sh:ro
+    networks: [services]
+volumes:
+  data:
+networks:
+  services:
+    external: true
+    name: dev-services

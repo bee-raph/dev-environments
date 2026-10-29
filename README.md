@@ -57,7 +57,7 @@ The repository is organized by environment type:
 
 ```text
 dev/        Language development environments: dotnet, java, python, rust, go, nodejs, cpp
-services/   Databases and messaging: mysql, postgresql, sqlserver, redis, rabbitmq, mongodb, kafka
+services/   Databases and messaging: mysql, postgresql, sqlserver, redis, rabbitmq, mongodb, kafka, azure-sql-edge
 cloud/      Cloud emulators: floci-aws, floci-azure, floci-gcp
 ```
 
@@ -208,6 +208,7 @@ the language environments and retain their data in named volumes.
 | [services/mysql](services/mysql/README.md) | localhost:3306 | Global administrator with grant rights |
 | [services/postgresql](services/postgresql/README.md) | localhost:5432 | Superuser |
 | [services/sqlserver](services/sqlserver/README.md) | localhost:1433 | sysadmin; x64 Developer edition |
+| [services/azure-sql-edge](services/azure-sql-edge/README.md) | localhost:1434 | sysadmin; native ARM64/AMD64 legacy SQL Edge |
 | [services/redis](services/redis/README.md) | localhost:6379 | All commands, keys and channels |
 | [services/rabbitmq](services/rabbitmq/README.md) | localhost:5672; UI localhost:15672 | Administrator and full resource access |
 | [services/mongodb](services/mongodb/README.md) | localhost:27017 | Root administrator |
@@ -226,7 +227,7 @@ docker network connect dev-services "$(docker compose ps -q dev)"
 ```
 
 Connect applications using the service hostname (`mysql`, `postgresql`,
-`sqlserver`, `redis`, `rabbitmq`, `mongodb`, or `kafka`) and its standard port. Repeat the network
+`sqlserver`, `azure-sql-edge`, `redis`, `rabbitmq`, `mongodb`, or `kafka`) and its standard port. Repeat the network
 attachment when recreating the development container, or declare `dev-services`
 as an external network in that environment's Compose configuration.
 
@@ -258,3 +259,7 @@ Official installation and sign-in documentation: [Codex CLI](https://learn.chatg
 ## Kafka stack
 
 `services/kafka` provides three replicated KRaft brokers, Kafbat UI, a Karapace schema registry, and Kafka Connect. Run `./start.sh` in that folder, then open http://localhost:8090 and sign in as `developer` using its generated `.env` password. Host clients use `localhost:9092,localhost:9093,localhost:9094`; development containers on `dev-services` use `kafka:9092,kafka-2:9092,kafka-3:9092`. All brokers require SASL/PLAIN credentials. The [Kafka README](services/kafka/README.md) covers schemas, connectors, .NET client settings, persistence, security, and the included `./smoke-test.sh`.
+
+## Native SQL Edge compatibility service
+
+[services/azure-sql-edge](services/azure-sql-edge/README.md) builds from `mcr.microsoft.com/azure-sql-edge:latest`, which currently offers native ARM64 and AMD64 images. Run `./start.sh` there; connect on host `localhost,1434` or container hostname `azure-sql-edge,1433`, using database `app` and the generated developer administrator credentials. A native Go-based `sqlcmd` handles health checks and login setup. SQL Edge and its ARM64 support are retired; this is a legacy local compatibility service, with limitations documented in its README.
