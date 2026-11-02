@@ -21,6 +21,8 @@ services:
       - ./src:/workspace/src
       - editor-data:/home/developer/.local/share/code-server
       - developer-config:/home/developer/.config
+      - pip-cache:/home/developer/.cache/pip
+      - uv-cache:/home/developer/.cache/uv
       - maven-cache:/home/developer/.m2
       - gradle-cache:/home/developer/.gradle
       - npm-cache:/home/developer/.npm
@@ -34,6 +36,8 @@ services:
 volumes:
   editor-data:
   developer-config:
+  pip-cache:
+  uv-cache:
   maven-cache:
   gradle-cache:
   npm-cache:

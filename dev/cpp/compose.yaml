@@ -17,6 +17,8 @@ services:
       - ./src:/workspace/src
       - editor-data:/home/developer/.local/share/code-server
       - developer-config:/home/developer/.config
+      - pip-cache:/home/developer/.cache/pip
+      - uv-cache:/home/developer/.cache/uv
       - ccache:/home/developer/.cache/ccache
       - conan-cache:/home/developer/.conan2
     healthcheck:
@@ -29,5 +31,7 @@ services:
 volumes:
   editor-data:
   developer-config:
+  pip-cache:
+  uv-cache:
   ccache:
   conan-cache:

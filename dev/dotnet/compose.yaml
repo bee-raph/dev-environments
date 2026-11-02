@@ -15,6 +15,8 @@ services:
       - ./src:/workspace/src
       - editor-data:/home/developer/.local/share/code-server
       - developer-config:/home/developer/.config
+      - pip-cache:/home/developer/.cache/pip
+      - uv-cache:/home/developer/.cache/uv
       - nuget-cache:/home/developer/.nuget/packages
       - npm-cache:/home/developer/.npm
     healthcheck:
@@ -27,5 +29,7 @@ services:
 volumes:
   editor-data:
   developer-config:
+  pip-cache:
+  uv-cache:
   nuget-cache:
   npm-cache:

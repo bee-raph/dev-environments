@@ -4,7 +4,7 @@ services:
     build:
       context: .
       args:
-        BASE_IMAGE: ${BASE_IMAGE:-python:3.14-slim-bookworm}
+        BASE_IMAGE: ${BASE_IMAGE:-python:3.14-bookworm}
         DEV_UID: ${DEV_UID:-1000}
         DEV_GID: ${DEV_GID:-1000}
     ports:

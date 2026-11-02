@@ -81,3 +81,21 @@ Claude Code (`claude`) and OpenAI Codex (`codex`) are installed as the non-root 
 Their settings, sessions and Linux file-based credentials live under `/home/developer/.config/claude` and `/home/developer/.config/codex` in the existing `developer-config` volume. Container replacement preserves them; `docker compose down --volumes` deletes them. Credentials are not built into images or committed to this repository.
 
 To add the tools to an existing environment or refresh the installed versions, run `docker compose build --no-cache` followed by `./start.sh`. Claude Code installs its stable channel; Codex installs the current release. These are terminal tools available through both editors; no AI editor extensions are installed.
+
+## Python available in this environment
+
+Includes a complete Python 3 standard library, development headers, pip, venv, and the standalone `uv`/`uvx` tools. `python` and `python3` are available. The Python environment uses the full official Python 3.14 image; the other environments use their base distribution's Python version.
+
+Create project environments inside your mounted source folder, as `developer`:
+
+```sh
+python -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+# Install your project's dependencies with pip, or use uv:
+uv pip install -r requirements.txt
+# For a project with pyproject.toml and uv.lock:
+uv sync
+```
+
+Use a project virtual environment for package installation; system Python and bundled tool environments are image-managed. pip and uv caches persist in named volumes. Rebuild with `docker compose build --pull`, then run `./start.sh` to apply these additions to an existing container.

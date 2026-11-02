@@ -4,7 +4,8 @@ Ready-to-use development workspaces for .NET, Java, Python, Rust, Go, Node.js,
 and C/C++. Each stack lives in its own folder and runs in a separate Docker
 container, keeping its SDKs, compilers, editors, and dependencies off your host.
 
-Every language environment includes Git, Git LFS, Claude Code CLI, OpenAI Codex CLI,
+Every language environment includes a full Python 3 installation with pip, venv,
+uv and uvx, plus Git, Git LFS, Claude Code CLI, OpenAI Codex CLI,
 a browser-based VS Code editor
 (code-server), and configuration for connecting desktop Microsoft VS Code.
 You can run environments independently or alongside one another.
@@ -263,3 +264,9 @@ Official installation and sign-in documentation: [Codex CLI](https://learn.chatg
 ## Native SQL Edge compatibility service
 
 [services/azure-sql-edge](services/azure-sql-edge/README.md) builds from `mcr.microsoft.com/azure-sql-edge:latest`, which currently offers native ARM64 and AMD64 images. Run `./start.sh` there; connect on host `localhost,1434` or container hostname `azure-sql-edge,1433`, using database `app` and the generated developer administrator credentials. A native Go-based `sqlcmd` handles health checks and login setup. SQL Edge and its ARM64 support are retired; this is a legacy local compatibility service, with limitations documented in its README.
+
+## Python tooling in every development environment
+
+All folders under `dev/` include Python, pip, venv, development headers, and `uv`/`uvx`. The Python-specific environment uses the full official Python 3.14 image; other stacks use the Python version supplied by their Debian/Ubuntu base. Standalone uv binaries come from Astral's official multi-architecture image. pip and uv caches have dedicated persistent volumes in every environment.
+
+Create a project `.venv` inside your mounted source folder with `python -m venv .venv`, activate it, then install dependencies using pip or `uv pip`. For uv-managed projects, use `uv sync`. Install project packages as the developer user into project environments. Rebuild your chosen environment using `docker compose build --pull`, then `./start.sh` to use these changes. If your existing Python `.env` explicitly selects a slim image, change `BASE_IMAGE` to `python:3.14-bookworm` for the full base image.

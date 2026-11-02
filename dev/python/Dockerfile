@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=python:3.14-slim-bookworm
+ARG BASE_IMAGE=python:3.14-bookworm
 FROM ${BASE_IMAGE}
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -6,6 +6,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && git lfs install --system && rm -rf /var/lib/apt/lists/*
 RUN curl -fsSL https://code-server.dev/install.sh -o /tmp/install-code-server.sh \
     && sh /tmp/install-code-server.sh && rm /tmp/install-code-server.sh
+# Official multi-architecture uv distribution, independent of system pip.
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
 ARG DEV_UID=1000
 ARG DEV_GID=1000
 RUN if id ubuntu >/dev/null 2>&1; then userdel ubuntu; fi \
@@ -21,11 +24,12 @@ ENV HOME=/home/developer \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PATH=/home/developer/.local/bin:/opt/devtools/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-RUN python -m venv /opt/devtools && /opt/devtools/bin/pip install --no-cache-dir --upgrade pip uv pytest ruff mypy debugpy ipython build
+RUN python -m venv /opt/devtools && /opt/devtools/bin/pip install --no-cache-dir --upgrade pip setuptools wheel pytest ruff mypy debugpy ipython build
 RUN mkdir -p /opt/editor-extensions /workspace/src /home/developer/.local/share/code-server \
     /home/developer/.config/git /home/developer/.cache/pip /home/developer/.cache/uv \
     && chown -R developer:developer /home/developer /workspace /opt/editor-extensions
 USER developer
+RUN python --version && python3 -m pip --version && uv --version && uvx --version
 # Install the native AI CLIs as developer; keep binaries outside mounted settings.
 RUN curl -fsSL https://claude.ai/install.sh -o /tmp/install-claude.sh \
     && bash /tmp/install-claude.sh stable \

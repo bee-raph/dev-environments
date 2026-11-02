@@ -2,10 +2,14 @@ ARG BASE_IMAGE=ubuntu:26.04
 FROM ${BASE_IMAGE}
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl wget git git-lfs openssh-client bash bash-completion jq ripgrep unzip zip build-essential procps less nano sqlite3 tini gcc g++ clang clangd clang-format clang-tidy gdb lldb cmake ninja-build pkg-config ccache valgrind autoconf automake libtool python3 python3-venv libssl-dev \
+    ca-certificates curl wget git git-lfs openssh-client bash bash-completion jq ripgrep unzip zip build-essential procps less nano sqlite3 tini gcc g++ clang clangd clang-format clang-tidy gdb lldb cmake ninja-build pkg-config ccache valgrind autoconf automake libtool libssl-dev \
+    python3-full python3-dev python3-pip python-is-python3 \
     && git lfs install --system && rm -rf /var/lib/apt/lists/*
 RUN curl -fsSL https://code-server.dev/install.sh -o /tmp/install-code-server.sh \
     && sh /tmp/install-code-server.sh && rm /tmp/install-code-server.sh
+# Official multi-architecture uv distribution, independent of system pip.
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
 ARG DEV_UID=1000
 ARG DEV_GID=1000
 RUN if id ubuntu >/dev/null 2>&1; then userdel ubuntu; fi \
@@ -17,14 +21,18 @@ RUN if id ubuntu >/dev/null 2>&1; then userdel ubuntu; fi \
 ENV HOME=/home/developer \
     CODEX_HOME=/home/developer/.config/codex \
     CLAUDE_CONFIG_DIR=/home/developer/.config/claude \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
     GIT_CONFIG_GLOBAL=/home/developer/.config/git/config \
     CCACHE_DIR=/home/developer/.cache/ccache \
     PATH=/home/developer/.local/bin:/opt/devtools/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 RUN python3 -m venv /opt/devtools && /opt/devtools/bin/pip install --no-cache-dir conan meson
 RUN mkdir -p /opt/editor-extensions /workspace/src /home/developer/.local/share/code-server \
     /home/developer/.config/git /home/developer/.cache/ccache /home/developer/.conan2 \
+    && mkdir -p /home/developer/.cache/pip /home/developer/.cache/uv \
     && chown -R developer:developer /home/developer /workspace /opt/editor-extensions
 USER developer
+RUN python --version && python3 -m pip --version && uv --version && uvx --version
 # Install the native AI CLIs as developer; keep binaries outside mounted settings.
 RUN curl -fsSL https://claude.ai/install.sh -o /tmp/install-claude.sh \
     && bash /tmp/install-claude.sh stable \
