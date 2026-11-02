@@ -41,6 +41,7 @@ layers and persistent caches.
 | Folder | Main tools | Browser editor | Application host port | Frontend host port |
 | --- | --- | --- | --- | --- |
 | [dev/dotnet](dev/dotnet/README.md) | .NET 10 SDK, ASP.NET Core, EF CLI, Node.js | [8080](http://localhost:8080) | 5000 | 5173 |
+| [dev/dotnet11](dev/dotnet11/README.md) | .NET 11 RC3 SDK, ASP.NET Core, EF 11 RC3, Node.js | [8088](http://localhost:8088) | 5001 | 5180 |
 | [dev/java](dev/java/README.md) | JDK 27, Maven, Gradle, Node.js | [8082](http://localhost:8082) | 8081 | 5174 |
 | [dev/python](dev/python/README.md) | Python 3.14, uv, pytest, Ruff, mypy | [8083](http://localhost:8083) | 8000 | 5175 |
 | [dev/rust](dev/rust/README.md) | Stable Rust, Cargo, rustfmt, Clippy | [8084](http://localhost:8084) | 8001 | 5176 |
@@ -57,7 +58,7 @@ all environments; Node.js tooling is bundled in .NET, Java, and Node.js.
 The repository is organized by environment type:
 
 ```text
-dev/        Language development environments: dotnet, java, python, rust, go, nodejs, cpp
+dev/        Language development environments: dotnet, dotnet11, java, python, rust, go, nodejs, cpp
 services/   Databases and messaging: mysql, postgresql, sqlserver, redis, rabbitmq, mongodb, kafka, azure-sql-edge
 cloud/      Cloud emulators: floci-aws, floci-azure, floci-gcp
 ```
@@ -125,7 +126,8 @@ Application servers must listen on a published **container** port and bind to
 
 | Environment | Application container port | Default host URL |
 | --- | --- | --- |
-| .NET | 5000 | http://localhost:5000 |
+| .NET 10 | 5000 | http://localhost:5000 |
+| .NET 11 | 5000 | http://localhost:5001 |
 | Java | 8081 | http://localhost:8081 |
 | Python | 8000 | http://localhost:8000 |
 | Rust | 8000 | http://localhost:8001 |
@@ -249,7 +251,7 @@ Run `./start.sh` in each folder under `cloud/`. These emulators share `dev-servi
 
 ## AI coding assistants
 
-All seven environments under `dev/` include `claude` and `codex`. Start either from your project directory in the container terminal. For Codex, use `codex login --device-auth` and complete sign-in in your host browser; device-code login must be enabled for your account/workspace. For Claude Code, run `claude` and follow its sign-in instructions. Your own account or API access is required.
+All environments under `dev/` include `claude` and `codex`. Start either from your project directory in the container terminal. For Codex, use `codex login --device-auth` and complete sign-in in your host browser; device-code login must be enabled for your account/workspace. For Claude Code, run `claude` and follow its sign-in instructions. Your own account or API access is required.
 
 AI configuration, sessions and file-based credentials persist separately for each environment in its existing `developer-config` volume, under `.config/claude` and `.config/codex`. Removing that volume deletes them. No account credentials are included in images or Git. Native binaries are installed as `developer`, outside mounted settings directories.
 
@@ -270,3 +272,7 @@ Official installation and sign-in documentation: [Codex CLI](https://learn.chatg
 All folders under `dev/` include Python, pip, venv, development headers, and `uv`/`uvx`. The Python-specific environment uses the full official Python 3.14 image; other stacks use the Python version supplied by their Debian/Ubuntu base. Standalone uv binaries come from Astral's official multi-architecture image. pip and uv caches have dedicated persistent volumes in every environment.
 
 Create a project `.venv` inside your mounted source folder with `python -m venv .venv`, activate it, then install dependencies using pip or `uv pip`. For uv-managed projects, use `uv sync`. Install project packages as the developer user into project environments. Rebuild your chosen environment using `docker compose build --pull`, then `./start.sh` to use these changes. If your existing Python `.env` explicitly selects a slim image, change `BASE_IMAGE` to `python:3.14-bookworm` for the full base image.
+
+## .NET 11 release candidate environment
+
+`dev/dotnet11` copies the .NET environment with the SDK and EF CLI pinned to .NET 11 RC3. Its editor is http://localhost:8088, application port is 5001, and frontend port is 5180. It includes the same Python, uv, AI CLIs, Node.js, Git and desktop VS Code support, with separate source and named volumes. To move to the final release, set `DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:11.0` and `EF_VERSION=11.*` in its `.env`, then rebuild with `docker compose build --pull` and launch with `./start.sh`. See its [README](dev/dotnet11/README.md) for project SDK/package migration details.
