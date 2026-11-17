@@ -13,7 +13,7 @@ You can run environments independently or alongside one another.
 ## Requirements
 
 - Docker Desktop on macOS/Windows, or Docker Engine on Linux.
-- Docker Compose with support for `docker compose up --wait`.
+- Docker Compose 2.17 or newer and BuildKit, for shared build contexts and `docker compose up --wait`.
 - A browser for code-server.
 - Optional: Microsoft VS Code with the **Dev Containers** extension for the
   desktop editing experience.
@@ -41,7 +41,7 @@ layers and persistent caches.
 | Folder | Main tools | Browser editor | Application host port | Frontend host port |
 | --- | --- | --- | --- | --- |
 | [dev/dotnet](dev/dotnet/README.md) | .NET 10 SDK, ASP.NET Core, EF CLI, Node.js | [8080](http://localhost:8080) | 5000 | 5173 |
-| [dev/dotnet11](dev/dotnet11/README.md) | .NET 11 RC3 SDK, ASP.NET Core, EF 11 RC3, Node.js | [8088](http://localhost:8088) | 5001 | 5180 |
+| [dev/dotnet11](dev/dotnet11/README.md) | .NET 11 SDK, ASP.NET Core, EF 11 CLI, Node.js | [8088](http://localhost:8088) | 5001 | 5180 |
 | [dev/java](dev/java/README.md) | JDK 27, Maven, Gradle, Node.js | [8082](http://localhost:8082) | 8081 | 5174 |
 | [dev/python](dev/python/README.md) | Python 3.14, uv, pytest, Ruff, mypy | [8083](http://localhost:8083) | 8000 | 5175 |
 | [dev/rust](dev/rust/README.md) | Stable Rust, Cargo, rustfmt, Clippy | [8084](http://localhost:8084) | 8001 | 5176 |
@@ -269,10 +269,12 @@ Official installation and sign-in documentation: [Codex CLI](https://learn.chatg
 
 ## Python tooling in every development environment
 
-All folders under `dev/` include Python, pip, venv, development headers, and `uv`/`uvx`. The Python-specific environment uses the full official Python 3.14 image; other stacks use the Python version supplied by their Debian/Ubuntu base. Standalone uv binaries come from Astral's official multi-architecture image. pip and uv caches have dedicated persistent volumes in every environment.
+All development images include Python, pip, venv, development headers, and `uv`/`uvx`. The Python-specific environment uses the full official Python 3.14 image; other stacks use the Python version supplied by their Debian/Ubuntu base. Standalone uv binaries come from Astral's official multi-architecture image. pip and uv caches have dedicated persistent volumes in every environment.
 
-Create a project `.venv` inside your mounted source folder with `python -m venv .venv`, activate it, then install dependencies using pip or `uv pip`. For uv-managed projects, use `uv sync`. Install project packages as the developer user into project environments. Rebuild your chosen environment using `docker compose build --pull`, then `./start.sh` to use these changes. If your existing Python `.env` explicitly selects a slim image, change `BASE_IMAGE` to `python:3.14-bookworm` for the full base image.
+Create a project `.venv` inside your mounted source folder with `python -m venv .venv`, activate it, then install dependencies using pip or `uv pip`. For uv-managed projects, use `uv sync`. Install project packages as the developer user into project environments. Rebuild your chosen environment using `docker compose build --pull --no-cache`, then `./start.sh` to use these changes. If your existing Python `.env` explicitly selects a slim image, change `BASE_IMAGE` to `python:3.14-bookworm` for the full base image.
 
-## .NET 11 release candidate environment
+## .NET 11 environment
 
-`dev/dotnet11` copies the .NET environment with the SDK and EF CLI pinned to .NET 11 RC3. Its editor is http://localhost:8088, application port is 5001, and frontend port is 5180. It includes the same Python, uv, AI CLIs, Node.js, Git and desktop VS Code support, with separate source and named volumes. To move to the final release, set `DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:11.0` and `EF_VERSION=11.*` in its `.env`, then rebuild with `docker compose build --pull` and launch with `./start.sh`. See its [README](dev/dotnet11/README.md) for project SDK/package migration details.
+`dev/dotnet11` copies the .NET environment with the stable .NET 11 SDK and EF CLI. Its editor is http://localhost:8088, application port is 5001, and frontend port is 5180. It includes the same Python, uv, AI CLIs, Node.js, Git and desktop VS Code support, with separate source and named volumes. If an existing `.env` still pins RC3, remove the overrides or set `DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:11.0` and `EF_VERSION=11.*` in its `.env`, then rebuild with `docker compose build --pull --no-cache` and launch with `./start.sh`. See its [README](dev/dotnet11/README.md) for project SDK/package migration details.
+
+Every development environment also includes upstream Git, GitHub CLI, Azure CLI, AWS CLI v2, and Google Cloud CLI. These and the coding CLIs resolve their current releases at build time; use `docker compose build --pull --no-cache` and `./start.sh` from the chosen environment to refresh them. Builds support native Linux ARM64 and AMD64.

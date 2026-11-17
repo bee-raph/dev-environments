@@ -1,12 +1,12 @@
-# .NET 11 RC3 web development environment
+# .NET 11 web development environment
 
 ## Tools
 
-- Pinned .NET 11 RC3 SDK from Microsoft's `sdk:11.0.100-rc.3` image, including
+- Stable .NET 11 SDK from Microsoft's `sdk:11.0` image, including
   ASP.NET Core, NuGet, MSBuild, test, format, user-secrets and watch commands.
 - code-server: browser-based VS Code, with persistent settings and extensions.
 - Free/Libre C# extension (`muhammad-sammy.csharp`), REST Client, EditorConfig.
-- Entity Framework Core CLI 11 RC3 and dotnet-outdated for dependency inspection.
+- Entity Framework Core CLI 11.x and dotnet-outdated for dependency inspection.
 - Node.js 24 LTS, npm and npx for JavaScript/TypeScript frontend development.
 - Git, Git LFS, OpenSSH client, Bash and completion.
 - curl, wget, jq, ripgrep, zip/unzip, build-essential, procps, less, nano,
@@ -72,7 +72,7 @@ docker compose build --pull --no-cache
 `down` preserves named volumes and source code. `down --volumes` deletes editor
 settings and caches; source files in `src/` remain on the host.
 
-The SDK and EF CLI are pinned to RC3. This environment has its own Compose project,
+This environment has its own Compose project,
 source folder, caches and configuration volumes. It can run beside `dev/dotnet`.
 Host ports are 8088 (editor), 5001 (application), and 5180 (frontend); container
 ports remain 8080, 5000, and 5173. Keep application servers bound to
@@ -80,7 +80,7 @@ ports remain 8080, 5000, and 5173. Keep application servers bound to
 
 ## Upgrade to .NET 11 final
 
-Once the final SDK image and EF packages are published, set these values in `.env`:
+The defaults now use the final release. If your existing `.env` pins RC3, remove those overrides or set:
 
 ```dotenv
 DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:11.0
@@ -144,7 +144,7 @@ Claude Code (`claude`) and OpenAI Codex (`codex`) are installed as the non-root 
 
 Their settings, sessions and Linux file-based credentials live under `/home/developer/.config/claude` and `/home/developer/.config/codex` in the existing `developer-config` volume. Container replacement preserves them; `docker compose down --volumes` deletes them. Credentials are not built into images or committed to this repository.
 
-To add the tools to an existing environment or refresh the installed versions, run `docker compose build --no-cache` followed by `./start.sh`. Claude Code installs its stable channel; Codex installs the current release. These are terminal tools available through both editors; no AI editor extensions are installed.
+To add the tools to an existing environment or refresh the installed versions, run `docker compose build --pull --no-cache` followed by `./start.sh`. Claude Code and Codex install their latest release. These are terminal tools available through both editors; no AI editor extensions are installed.
 
 ## Python available in this environment
 
@@ -163,3 +163,5 @@ uv sync
 ```
 
 Use a project virtual environment for package installation; system Python and bundled tool environments are image-managed. pip and uv caches persist in named volumes. Rebuild with `docker compose build --pull`, then run `./start.sh` to apply these additions to an existing container.
+
+Git, GitHub CLI (`gh`), Azure CLI (`az`), AWS CLI v2 (`aws`), and Google Cloud CLI (`gcloud`, `gsutil`, `bq`) are included. Run `docker compose build --pull --no-cache` and then `./start.sh` to refresh tools from upstream.

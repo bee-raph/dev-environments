@@ -3,6 +3,8 @@ services:
   dev:
     build:
       context: .
+      additional_contexts:
+        dev_common: ../common
       args:
         JAVA_IMAGE: ${JAVA_IMAGE:-eclipse-temurin:27-jdk}
         MAVEN_VERSION: ${MAVEN_VERSION:-3.9.16}

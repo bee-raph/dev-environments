@@ -3,6 +3,8 @@ services:
   dev:
     build:
       context: .
+      additional_contexts:
+        dev_common: ../common
       args:
         BASE_IMAGE: ${BASE_IMAGE:-golang:1.27-bookworm}
         DEV_UID: ${DEV_UID:-1000}

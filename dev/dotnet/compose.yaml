@@ -3,6 +3,8 @@ services:
   dev:
     build:
       context: .
+      additional_contexts:
+        dev_common: ../common
       args:
         DOTNET_IMAGE: ${DOTNET_IMAGE:-mcr.microsoft.com/dotnet/sdk:10.0}
         DEV_UID: ${DEV_UID:-1000}

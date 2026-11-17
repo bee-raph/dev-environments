@@ -1,5 +1,5 @@
-# .NET 11 RC3; override DOTNET_IMAGE and EF_VERSION to upgrade to final.
-ARG DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:11.0.100-rc.3
+# .NET 11 stable SDK; override DOTNET_IMAGE and EF_VERSION to pin builds.
+ARG DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:11.0
 FROM node:24-bookworm-slim AS node
 FROM ${DOTNET_IMAGE}
 
@@ -21,6 +21,9 @@ RUN curl -fsSL https://code-server.dev/install.sh -o /tmp/install-code-server.sh
     && rm /tmp/install-code-server.sh
 # Official multi-architecture uv distribution, independent of system pip.
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+# The Compose build supplies the shared installer as a named build context.
+RUN --mount=type=bind,from=dev_common,source=install-cli-tools.sh,target=/tmp/install-cli-tools.sh \
+    bash /tmp/install-cli-tools.sh
 
 ARG DEV_UID=1000
 ARG DEV_GID=1000
@@ -40,7 +43,7 @@ ENV HOME=/home/developer \
     ASPNETCORE_ENVIRONMENT=Development \
     ASPNETCORE_URLS=http://0.0.0.0:5000 \
     PATH=/home/developer/.local/bin:/opt/dotnet-tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-ARG EF_VERSION=11.0.0-rc.3.26522.148
+ARG EF_VERSION=11.*
 RUN dotnet tool install dotnet-ef --tool-path /opt/dotnet-tools --version "${EF_VERSION}" \
     && dotnet tool install dotnet-outdated-tool --tool-path /opt/dotnet-tools --allow-roll-forward \
     && mkdir -p /opt/editor-extensions /workspace/src \
@@ -52,12 +55,13 @@ USER developer
 RUN python --version && python3 -m pip --version && uv --version && uvx --version
 # Install the native AI CLIs as developer; keep binaries outside mounted settings.
 RUN curl -fsSL https://claude.ai/install.sh -o /tmp/install-claude.sh \
-    && bash /tmp/install-claude.sh stable \
+    && bash /tmp/install-claude.sh latest \
     && rm /tmp/install-claude.sh \
     && curl -fsSL https://chatgpt.com/codex/install.sh -o /tmp/install-codex.sh \
     && CODEX_HOME=/home/developer/.local/share/codex-install sh /tmp/install-codex.sh \
     && rm /tmp/install-codex.sh \
-    && claude --version && codex --version
+    && claude --version && codex --version \
+    && git --version && gh --version && az version && aws --version && gcloud --version
 RUN code-server --extensions-dir /opt/editor-extensions \
       --install-extension muhammad-sammy.csharp \
     && code-server --extensions-dir /opt/editor-extensions \

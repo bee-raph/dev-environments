@@ -3,6 +3,8 @@ services:
   dev:
     build:
       context: .
+      additional_contexts:
+        dev_common: ../common
       args:
         BASE_IMAGE: ${BASE_IMAGE:-node:26-bookworm}
         DEV_UID: ${DEV_UID:-1000}

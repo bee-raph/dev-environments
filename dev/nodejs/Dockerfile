@@ -9,6 +9,9 @@ RUN curl -fsSL https://code-server.dev/install.sh -o /tmp/install-code-server.sh
     && sh /tmp/install-code-server.sh && rm /tmp/install-code-server.sh
 # Official multi-architecture uv distribution, independent of system pip.
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+# The Compose build supplies the shared installer as a named build context.
+RUN --mount=type=bind,from=dev_common,source=install-cli-tools.sh,target=/tmp/install-cli-tools.sh \
+    bash /tmp/install-cli-tools.sh
 
 ARG DEV_UID=1000
 ARG DEV_GID=1000
@@ -36,12 +39,13 @@ USER developer
 RUN python --version && python3 -m pip --version && uv --version && uvx --version
 # Install the native AI CLIs as developer; keep binaries outside mounted settings.
 RUN curl -fsSL https://claude.ai/install.sh -o /tmp/install-claude.sh \
-    && bash /tmp/install-claude.sh stable \
+    && bash /tmp/install-claude.sh latest \
     && rm /tmp/install-claude.sh \
     && curl -fsSL https://chatgpt.com/codex/install.sh -o /tmp/install-codex.sh \
     && CODEX_HOME=/home/developer/.local/share/codex-install sh /tmp/install-codex.sh \
     && rm /tmp/install-codex.sh \
-    && claude --version && codex --version
+    && claude --version && codex --version \
+    && git --version && gh --version && az version && aws --version && gcloud --version
 RUN code-server --extensions-dir /opt/editor-extensions --install-extension dbaeumer.vscode-eslint \
     && code-server --extensions-dir /opt/editor-extensions --install-extension esbenp.prettier-vscode \
     && code-server --extensions-dir /opt/editor-extensions --install-extension EditorConfig.EditorConfig \

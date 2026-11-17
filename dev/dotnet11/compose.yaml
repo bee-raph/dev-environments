@@ -3,9 +3,11 @@ services:
   dev:
     build:
       context: .
+      additional_contexts:
+        dev_common: ../common
       args:
-        DOTNET_IMAGE: ${DOTNET_IMAGE:-mcr.microsoft.com/dotnet/sdk:11.0.100-rc.3}
-        EF_VERSION: ${EF_VERSION:-11.0.0-rc.3.26522.148}
+        DOTNET_IMAGE: ${DOTNET_IMAGE:-mcr.microsoft.com/dotnet/sdk:11.0}
+        EF_VERSION: ${EF_VERSION:-11.*}
         DEV_UID: ${DEV_UID:-1000}
         DEV_GID: ${DEV_GID:-1000}
     ports:
