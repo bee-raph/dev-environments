@@ -100,4 +100,6 @@ uv sync
 
 Use a project virtual environment for package installation; system Python and bundled tool environments are image-managed. pip and uv caches persist in named volumes. Rebuild with `docker compose build --pull`, then run `./start.sh` to apply these additions to an existing container.
 
-Git, GitHub CLI (`gh`), Azure CLI (`az`), AWS CLI v2 (`aws`), and Google Cloud CLI (`gcloud`, `gsutil`, `bq`) are included. Run `docker compose build --pull --no-cache` and then `./start.sh` to refresh tools from upstream.
+Git, GitHub CLI (`gh`), Azure CLI (`az`), AWS CLI v2 (`aws`), Google Cloud CLI (`gcloud`, `gsutil`, `bq`), and Terraform CLI (`terraform`) are included. Run `docker compose build --pull --no-cache` and then `./start.sh` to refresh tools from upstream.
+
+Terraform installs the current stable release from HashiCorp for the container's CPU architecture, with its archive checked against the published SHA-256 sums. Run `terraform init`, `terraform validate`, and `terraform plan` from your project directory under `/workspace/src`. Use your cloud provider's normal credentials; none are embedded in the image. Refresh Terraform with the full rebuild command above.

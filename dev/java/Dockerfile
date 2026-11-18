@@ -63,7 +63,7 @@ RUN curl -fsSL https://claude.ai/install.sh -o /tmp/install-claude.sh \
     && CODEX_HOME=/home/developer/.local/share/codex-install sh /tmp/install-codex.sh \
     && rm /tmp/install-codex.sh \
     && claude --version && codex --version \
-    && git --version && gh --version && az version && aws --version && gcloud --version
+    && git --version && gh --version && az version && aws --version && gcloud --version && terraform version
 RUN code-server --extensions-dir /opt/editor-extensions --install-extension redhat.java \
     && code-server --extensions-dir /opt/editor-extensions --install-extension vscjava.vscode-java-debug \
     && code-server --extensions-dir /opt/editor-extensions --install-extension vscjava.vscode-java-test \

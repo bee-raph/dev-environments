@@ -277,4 +277,8 @@ Create a project `.venv` inside your mounted source folder with `python -m venv 
 
 `dev/dotnet11` copies the .NET environment with the stable .NET 11 SDK and EF CLI. Its editor is http://localhost:8088, application port is 5001, and frontend port is 5180. It includes the same Python, uv, AI CLIs, Node.js, Git and desktop VS Code support, with separate source and named volumes. If an existing `.env` still pins RC3, remove the overrides or set `DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:11.0` and `EF_VERSION=11.*` in its `.env`, then rebuild with `docker compose build --pull --no-cache` and launch with `./start.sh`. See its [README](dev/dotnet11/README.md) for project SDK/package migration details.
 
-Every development environment also includes upstream Git, GitHub CLI, Azure CLI, AWS CLI v2, and Google Cloud CLI. These and the coding CLIs resolve their current releases at build time; use `docker compose build --pull --no-cache` and `./start.sh` from the chosen environment to refresh them. Builds support native Linux ARM64 and AMD64.
+Every development environment also includes upstream Git, GitHub CLI, Azure CLI, AWS CLI v2, Google Cloud CLI, and Terraform CLI. These and the coding CLIs resolve their current releases at build time; use `docker compose build --pull --no-cache` and `./start.sh` from the chosen environment to refresh them. Builds support native Linux ARM64 and AMD64.
+
+## Terraform CLI
+
+All eight development environments include HashiCorp Terraform CLI. The shared installer selects the latest stable release at build time, downloads the native ARM64 or AMD64 archive, and verifies its SHA-256 checksum. Run `terraform init`, `terraform validate`, and `terraform plan` from your project folder in the container terminal. Cloud credentials are configured separately using the installed provider CLIs or environment variables. Rebuild with `docker compose build --pull --no-cache`, then run `./start.sh` to refresh the installed release.

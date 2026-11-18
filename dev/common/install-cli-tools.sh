@@ -35,6 +35,19 @@ awk -v asset="$gh_archive" '$2 == asset {print; found=1} END {if (!found) exit 1
 tar -xzf "$gh_archive"
 install -m 0755 "gh_${gh_version}_linux_${gh_arch}/bin/gh" /usr/local/bin/gh
 
+# Terraform CLI: resolve the current stable release and verify its archive.
+download https://checkpoint-api.hashicorp.com/v1/check/terraform terraform-release.json
+terraform_version=$(jq -er '.current_version | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' terraform-release.json)
+terraform_archive="terraform_${terraform_version}_linux_${gh_arch}.zip"
+terraform_release_url="https://releases.hashicorp.com/terraform/${terraform_version}"
+download "${terraform_release_url}/${terraform_archive}" "$terraform_archive"
+download "${terraform_release_url}/terraform_${terraform_version}_SHA256SUMS" terraform-checksums.txt
+awk -v asset="$terraform_archive" '$2 == asset {print; found=1} END {if (!found) exit 1}' terraform-checksums.txt | sha256sum -c -
+mkdir terraform-bin
+unzip -q "$terraform_archive" -d terraform-bin
+install -m 0755 terraform-bin/terraform /usr/local/bin/terraform
+terraform version
+
 download "https://awscli.amazonaws.com/awscli-exe-linux-${aws_arch}.zip" aws.zip
 unzip -q aws.zip
 ./aws/install --install-dir /opt/aws-cli --bin-dir /usr/local/bin
