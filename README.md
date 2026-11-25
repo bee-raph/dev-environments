@@ -5,7 +5,7 @@ and C/C++. Each stack lives in its own folder and runs in a separate Docker
 container, keeping its SDKs, compilers, editors, and dependencies off your host.
 
 Every language environment includes a full Python 3 installation with pip, venv,
-uv and uvx, plus Git, Git LFS, Claude Code CLI, OpenAI Codex CLI,
+uv and uvx, plus Git, Git LFS, Terraform, OpenCode, Claude Code CLI, OpenAI Codex CLI,
 a browser-based VS Code editor
 (code-server), and configuration for connecting desktop Microsoft VS Code.
 You can run environments independently or alongside one another.
@@ -32,7 +32,7 @@ Bash-compatible shell for the launch script. Alternatively, configure `.env`
 from `.env.example`, then run `docker compose up -d --build --wait`.
 
 The launch script creates the source folder and an optional `.env` configuration,
-builds the image, starts the container, and waits for the editor health check.
+builds the image, starts the container, and waits for the selected editor mode to become healthy.
 The initial build can take several minutes; subsequent launches reuse the image
 layers and persistent caches.
 
@@ -282,3 +282,11 @@ Every development environment also includes upstream Git, GitHub CLI, Azure CLI,
 ## Terraform CLI
 
 All eight development environments include HashiCorp Terraform CLI. The shared installer selects the latest stable release at build time, downloads the native ARM64 or AMD64 archive, and verifies its SHA-256 checksum. Run `terraform init`, `terraform validate`, and `terraform plan` from your project folder in the container terminal. Cloud credentials are configured separately using the installed provider CLIs or environment variables. Rebuild with `docker compose build --pull --no-cache`, then run `./start.sh` to refresh the installed release.
+
+## Choose browser or desktop-only editing
+
+All eight development environments support an `EDITOR_MODE` switch, without duplicate Dockerfiles or separate source folders. From your environment folder, run `./start.sh --browser` to enable code-server or `./start.sh --desktop` to run a keep-alive container for host VS Code. The script saves the selection in `.env`, so subsequent launches and **Dev Containers: Reopen in Container** use the same mode. Plain `./start.sh` uses the saved mode; a fresh environment defaults to browser mode.
+
+Desktop mode does not start code-server. Open the environment folder in host VS Code and choose **Dev Containers: Reopen in Container**. The localhost browser-port mapping remains reserved but has no editor listener; application ports remain available. Modes share source files, SDKs, settings and named volumes. Browser-only extension seeding is skipped in desktop mode, and health checks adapt to the selected mode.
+
+Terraform and OpenCode are available in every development environment, alongside Codex and Claude Code. Run `opencode` in your project terminal and configure your provider separately. OpenCode uses the official native installer, persistent `.config/opencode` settings and a dedicated `opencode-data` volume. Refresh installed tools with `docker compose build --pull --no-cache`, then start your chosen mode. Use these environments on your local machine only.

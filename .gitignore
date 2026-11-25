@@ -16,3 +16,6 @@
 **/*.o
 **/*.a
 **/*.so
+
+# Temporary private files used when changing the saved editor mode.
+**/.env.mode.*

@@ -9,6 +9,8 @@ services:
         BASE_IMAGE: ${BASE_IMAGE:-rust:1-bookworm}
         DEV_UID: ${DEV_UID:-1000}
         DEV_GID: ${DEV_GID:-1000}
+    environment:
+      EDITOR_MODE: ${EDITOR_MODE:-browser}
     ports:
       - "127.0.0.1:${CODE_SERVER_PORT:-8084}:8080"
       - "127.0.0.1:${WEB_PORT:-8001}:8000"
@@ -19,12 +21,13 @@ services:
       - ./src:/workspace/src
       - editor-data:/home/developer/.local/share/code-server
       - developer-config:/home/developer/.config
+      - opencode-data:/home/developer/.local/share/opencode
       - pip-cache:/home/developer/.cache/pip
       - uv-cache:/home/developer/.cache/uv
       - cargo-registry:/home/developer/.cargo/registry
       - cargo-git:/home/developer/.cargo/git
     healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/healthz"]
+      test: ["CMD", "/usr/local/bin/dev-entrypoint", "--healthcheck"]
       interval: 15s
       timeout: 5s
       start_period: 30s
@@ -33,6 +36,7 @@ services:
 volumes:
   editor-data:
   developer-config:
+  opencode-data:
   pip-cache:
   uv-cache:
   cargo-registry:

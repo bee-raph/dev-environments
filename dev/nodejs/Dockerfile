@@ -37,6 +37,13 @@ RUN mkdir -p /opt/editor-extensions /workspace/src /home/developer/.local/share/
     && chown -R developer:developer /home/developer /workspace /opt/editor-extensions
 USER developer
 RUN python --version && python3 -m pip --version && uv --version && uvx --version
+# Install OpenCode's native CLI alongside the other terminal coding tools.
+RUN curl -fsSL https://opencode.ai/v2/install -o /tmp/install-opencode.sh \
+    && bash /tmp/install-opencode.sh --no-modify-path \
+    && rm /tmp/install-opencode.sh \
+    && mkdir -p "$HOME/.local/bin" "$HOME/.local/share/opencode" "$HOME/.config/opencode" \
+    && ln -s "$HOME/.opencode/bin/opencode" "$HOME/.local/bin/opencode" \
+    && opencode --version
 # Install the native AI CLIs as developer; keep binaries outside mounted settings.
 RUN curl -fsSL https://claude.ai/install.sh -o /tmp/install-claude.sh \
     && bash /tmp/install-claude.sh latest \

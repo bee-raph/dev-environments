@@ -17,19 +17,21 @@ services:
       - "127.0.0.1:${FRONTEND_PORT:-5174}:5173"
       - "127.0.0.1:${DEBUG_PORT:-5005}:5005"
     environment:
+      EDITOR_MODE: ${EDITOR_MODE:-browser}
       SERVER_PORT: "8081"
       SERVER_ADDRESS: "0.0.0.0"
     volumes:
       - ./src:/workspace/src
       - editor-data:/home/developer/.local/share/code-server
       - developer-config:/home/developer/.config
+      - opencode-data:/home/developer/.local/share/opencode
       - pip-cache:/home/developer/.cache/pip
       - uv-cache:/home/developer/.cache/uv
       - maven-cache:/home/developer/.m2
       - gradle-cache:/home/developer/.gradle
       - npm-cache:/home/developer/.npm
     healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/healthz"]
+      test: ["CMD", "/usr/local/bin/dev-entrypoint", "--healthcheck"]
       interval: 15s
       timeout: 5s
       start_period: 30s
@@ -38,6 +40,7 @@ services:
 volumes:
   editor-data:
   developer-config:
+  opencode-data:
   pip-cache:
   uv-cache:
   maven-cache:

@@ -141,3 +141,18 @@ Use a project virtual environment for package installation; system Python and bu
 Git, GitHub CLI (`gh`), Azure CLI (`az`), AWS CLI v2 (`aws`), Google Cloud CLI (`gcloud`, `gsutil`, `bq`), and Terraform CLI (`terraform`) are included. Run `docker compose build --pull --no-cache` and then `./start.sh` to refresh tools from upstream.
 
 Terraform installs the current stable release from HashiCorp for the container's CPU architecture, with its archive checked against the published SHA-256 sums. Run `terraform init`, `terraform validate`, and `terraform plan` from your project directory under `/workspace/src`. Use your cloud provider's normal credentials; none are embedded in the image. Refresh Terraform with the full rebuild command above.
+
+## Editor mode and OpenCode
+
+Use one configuration for both editor flavors:
+
+```sh
+./start.sh --browser  # Run code-server (default)
+./start.sh --desktop  # Keep the dev container running for desktop VS Code
+```
+
+These switches save `EDITOR_MODE=browser` or `EDITOR_MODE=desktop` in `.env`. You can also edit that setting directly, then run `./start.sh`. Mode changes recreate the container without rebuilding an unchanged image. Source files and named volumes are shared between modes.
+
+In desktop mode code-server is not started. Open this environment folder in host VS Code and choose **Dev Containers: Reopen in Container**. Its existing configuration honors the saved `.env` choice. The browser port mapping remains reserved, but there is no HTTP editor listening; application/frontend ports keep working. Both modes retain the same SDKs, AI CLIs, Git and cloud tools.
+
+Terraform is included via the shared installer. OpenCode is installed using its official native installer; run `opencode` from your project terminal and configure your model/provider account there. OpenCode configuration persists in the existing `developer-config` volume and its data in `opencode-data`. Rebuild with `docker compose build --pull --no-cache`, then start your chosen mode to install/refresh the CLI. No provider credentials are embedded in images.
