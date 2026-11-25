@@ -1,158 +1,131 @@
 # Java development environment
 
-## Tools
+## Tools and defaults
 
-- Eclipse Temurin JDK 27: java, javac, JShell, Javadoc, jar and JVM diagnostics.
-- Maven 3.9.16 and Gradle 9.8.1 (supports running on Java 27).
-- code-server with Red Hat Java language support, Java debugger/test runner,
-  Maven, Gradle, Java project manager, REST Client and EditorConfig extensions.
-- Node.js 24 LTS, npm/npx for web frontend development.
-- Git, Git LFS, SSH client, Bash/completion, curl, wget, jq, ripgrep,
-  zip/unzip, build-essential, procps, less, nano, SQLite CLI and tini.
+Eclipse Temurin JDK 27, javac, JShell, Javadoc and JVM diagnostics; Maven 3.9.16; Gradle 9.8.1; Node.js 24, npm and npx.
 
-No database server is included. Databases can be added as separate services
-later, joining this Compose project's default network.
+Base image: `JAVA_IMAGE=eclipse-temurin:27-jdk`. These are the configured defaults, not a claim that the versions are the latest releases. `.env` can override supported image/port settings; inspect the actual container with the tools' version commands.
 
-## Launch
+All eight environments also include a full Python standard library, development headers, pip/venv, uv/uvx, Git/Git LFS, GitHub CLI, Azure CLI, AWS CLI v2, Google Cloud CLI (`gcloud`, `gsutil`, `bq`), Terraform, OpenCode, Claude Code and Codex. Common shell/build utilities include SSH client, Bash/completion, curl, wget, jq, ripgrep, zip/unzip, SQLite CLI and tini. Node.js tooling is bundled only in the .NET, Java and Node.js environments.
 
-Start Docker with Compose, then run from this directory:
+Shared CLI installation comes from [`../common/install-cli-tools.sh`](../common/install-cli-tools.sh). Use Compose to supply that build context; copying this folder alone or running a bare `docker build .` does not supply it. Requirements: Docker with BuildKit, Compose 2.17+ and internet access; host VS Code plus Dev Containers for desktop editing. See the [repository guide](../../README.md).
+
+## Launch and editor mode
+
+Run from this directory using Bash (WSL or a Bash-compatible shell on Windows):
 
 ```sh
-./start.sh
+./start.sh --browser  # Enable code-server
+./start.sh --desktop  # Keep the container running for host VS Code
+./start.sh            # Reuse the saved choice; browser is the fresh default
 ```
 
-Open http://localhost:8082. All published
-ports bind to localhost. This environment can run alongside the .NET container.
-Copy `.env.example` to `.env` before launch to customize ports or versions.
-On Linux, `start.sh` sets host UID/GID when it creates `.env`.
+The switches save `EDITOR_MODE=browser` or `EDITOR_MODE=desktop` in `.env`. The script creates `src/` and `.env` if absent, invokes Compose with `--build --wait`, and uses the build cache when possible. Existing exported shell variables take precedence over `.env` in Compose. On Linux, automatic UID/GID matching happens only when the script creates `.env`; if you copy `.env.example`, set `DEV_UID`/`DEV_GID` yourself before building. The container runs as `developer`.
 
-Host `src/` is mounted at `/workspace/src`. Clone or place projects there.
-Editor settings/extensions, Git config, Maven/Gradle state and npm cache are
-stored in named volumes and survive container recreation. Run as non-root.
-Host credentials are not copied into the container.
+| Behavior | Browser mode | Desktop mode |
+| --- | --- | --- |
+| Main process, under tini | code-server | `sleep infinity` |
+| Browser editor | http://localhost:8082 | Not running |
+| Health check | HTTP `/healthz` on container port 8080 | Desktop startup marker |
+| Host VS Code attachment | Available | Available |
+| SDKs, CLI tools, source and volumes | Same environment | Same environment |
 
-## Microsoft desktop VS Code
+Changing the mode changes the container environment, so Compose recreates the container. Running terminals, application servers and other processes stop; files outside bind mounts/named volumes are lost. Mounted source and named volumes survive. Rebuilds are still invoked by `start.sh`, but mode selection itself does not change the image. This is one switchable Compose project, not two simultaneous stacks. The browser-port mapping remains reserved in desktop mode even though no HTTP editor listens there; application/frontend mappings remain available. The code-server package stays installed in both modes.
 
-1. Run `./start.sh`.
-2. Install Microsoft VS Code and its Dev Containers extension on your host.
-3. Open this `java/` directory.
-4. Select **Dev Containers: Reopen in Container** from the Command Palette.
+## Desktop Microsoft VS Code
 
-The included configuration opens `/workspace/src` in the same Compose service
-and installs Java extensions through Microsoft's Marketplace. code-server
-remains available independently, using Open VSX. Desktop attachment requires
-VS Code on the host and is not automatically tested by the launch script.
+1. Run `./start.sh --desktop` (or keep browser mode if you also want code-server).
+2. Install Microsoft VS Code and the Dev Containers extension on the host.
+3. Open this `dev/java` folder containing `.devcontainer`, not only `src`.
+4. Choose **Dev Containers: Reopen in Container**. The configuration uses the saved Compose mode and opens `/workspace/src` as `developer`.
 
-## Develop
+Closing VS Code leaves the container running. Its UI runs on the host; terminals, builds and remote language tools run inside the container. Desktop extensions come from Microsoft's Marketplace; code-server uses Open VSX. Browser extension seeding runs only in browser mode and only once per `editor-data` volume. Desktop attachment is not verified by `start.sh`.
 
-Use the editor terminal to compile, build, test and run your projects:
+- Bundled browser extension IDs: `redhat.java`, `vscjava.vscode-java-debug`, `vscjava.vscode-java-test`, `vscjava.vscode-maven`, `vscjava.vscode-gradle`, `vscjava.vscode-java-dependency`, `EditorConfig.EditorConfig`, `humao.rest-client`.
+- Requested desktop extension IDs: `redhat.java`, `vscjava.vscode-java-debug`, `vscjava.vscode-java-test`, `vscjava.vscode-maven`, `vscjava.vscode-gradle`, `vscjava.vscode-java-dependency`, `EditorConfig.EditorConfig`, `humao.rest-client`.
+
+## Ports and applications
+
+All host bindings use `127.0.0.1`. Defaults can be overridden in `.env`:
+
+| Setting | Host port | Container port |
+| --- | --- | --- |
+| `CODE_SERVER_PORT` | 8082 | 8080 |
+| `WEB_PORT` | 8081 | 8081 |
+| `FRONTEND_PORT` | 5174 | 5173 |
+| `DEBUG_PORT` | 5005 | 5005 |
+
+Application servers must bind to `0.0.0.0:8081` inside the container; access them at http://localhost:8081. Starting an environment starts its editor/keep-alive, not your application.
+
+Run project commands from the container terminal under `/workspace/src`:
 
 ```sh
 java --version
 javac --version
-jshell
-mvn verify
-# Prefer each project's wrapper when present:
+# From your existing project, prefer its wrapper:
 ./mvnw verify
+./mvnw spring-boot:run
+# Or use its Gradle wrapper:
 ./gradlew build
+./gradlew bootRun
 ```
 
-Spring Boot apps inherit `SERVER_PORT=8081` and `SERVER_ADDRESS=0.0.0.0` from
-Compose. Run `./mvnw spring-boot:run` or `./gradlew bootRun` and visit
-http://localhost:8081. Other frameworks must listen on `0.0.0.0:8081` too.
-Framework versions and dependencies belong to the project; no global Spring
-Boot CLI or application server is required for embedded-server web apps.
+Compose supplies `SERVER_ADDRESS=0.0.0.0` and `SERVER_PORT=8081` for Spring Boot; other frameworks need equivalent settings. For JVM remote debugging, pass `-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005`. The host debug port defaults to 5005. Project framework dependencies and Maven/Gradle wrappers remain project-managed; use versions compatible with the selected JDK.
 
-For Vite, use `npm run dev -- --host 0.0.0.0 --port 5173` and visit
-http://localhost:5174 (host port 5174 maps to container port 5173).
+For an existing Vite project, use `npm run dev -- --host 0.0.0.0 --port 5173` and visit http://localhost:5174.
 
-For remote debugging, add this JVM option to your application:
+## Source, configuration and persistence
 
-```text
--agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
-```
+Keep your application repository in this folder's `src/`; it is mounted at `/workspace/src`. Git commits made inside that application repository belong to it. Other arbitrary host folders are not automatically mounted. Once attached to the container, VS Code's **Add Folder to Workspace** browses container paths; mount additional host folders explicitly if needed.
 
-Host debugger port: 5005. Debugging launched directly from the Java extension
-inside the container generally does not require exposing a debugger port.
+| Mount | Container path |
+| --- | --- |
+| `./src` | `/workspace/src` |
+| `editor-data` | `/home/developer/.local/share/code-server` |
+| `developer-config` | `/home/developer/.config` |
+| `opencode-data` | `/home/developer/.local/share/opencode` |
+| `pip-cache` | `/home/developer/.cache/pip` |
+| `uv-cache` | `/home/developer/.cache/uv` |
+| `maven-cache` | `/home/developer/.m2` |
+| `gradle-cache` | `/home/developer/.gradle` |
+| `npm-cache` | `/home/developer/.npm` |
 
-Configure Git once; configuration persists in the named config volume:
+`editor-data` retains code-server settings/extensions; `developer-config` retains Git configuration, CLI settings that use `.config`, and AI configuration. `opencode-data` retains OpenCode data. The listed language/pip/uv volumes retain caches, not every package or setting installed manually. Desktop VS Code's remote server/extensions directory is not a named volume; declared extensions can be reinstalled on a new container. Host VS Code UI settings are separate.
+
+Run `claude`, `codex`, or `opencode` from your project directory and configure your own account/provider. AI settings use `.config/claude`, `.config/codex`, `.config/opencode` and OpenCode's mounted data directory. These Compose files do not mount host credential folders; host IDE authentication integrations are separate. GitHub CLI and Google Cloud CLI default to `.config` locations; AWS `~/.aws` and Azure `~/.azure` defaults are **not mounted**. See [CLI credentials](../../README.md#cli-credentials-and-persistence) for persistent-path options.
+
+No database is included. To reach a separately launched repository service, run from this environment folder on the host:
 
 ```sh
-git config --global user.name "Your Name"
-git config --global user.email "you@example.com"
+docker network connect dev-services "$(docker compose ps -q dev)"
 ```
 
-## Manage
+The service's `start.sh` must have created that external network first. Use the service hostname and container port. Repeat the attachment after container recreation, including mode changes, or add the external network to this environment's Compose configuration.
+
+## Configure, update and stop
+
+Use the settings listed in `.env.example`. Do not overwrite an existing `.env` when changing only the mode or one setting. To initialize custom settings on a fresh checkout, copy `.env.example` to `.env` and edit it before launching.
 
 ```sh
+docker compose ps
 docker compose exec dev bash
 docker compose logs -f dev
 docker compose stop
+# Resume using the saved mode:
+./start.sh
+# Remove the container/network, retaining mounted source and named volumes:
 docker compose down
-# Refresh base image patches and code-server, retaining pinned Maven/Gradle:
+# Refresh base-image patches and upstream-installed tools:
 docker compose build --pull --no-cache
 ./start.sh
 ```
 
-`down` preserves volumes and host source. `down --volumes` deletes editor settings
-and build caches, while source in `src/` remains. Customize `JAVA_IMAGE`,
-`MAVEN_VERSION` and `GRADLE_VERSION` in `.env`; use compatible versions together.
-For projects requiring an older JDK, change `JAVA_IMAGE` and rebuild. Project
-wrappers may need an older JVM even though the installed Gradle supports JDK 27.
+The shared installer resolves upstream Git, gh, Terraform and cloud CLI releases when its build layer executes; native AI installers resolve their current releases too. `--pull` refreshes referenced images, while `--no-cache` reruns installers. A normal launch may reuse cached versions. Full refreshes retain the configured language major and explicitly pinned tool versions. Project lockfiles and image/tag overrides control project reproducibility; these development images are not fully version-pinned.
 
-Sources:
-- https://hub.docker.com/_/eclipse-temurin
-- https://docs.gradle.org/9.8.1/release-notes.html
-- https://maven.apache.org/download.cgi
-- https://coder.com/docs/code-server/FAQ
+Java also exposes `MAVEN_VERSION` and `GRADLE_VERSION` build arguments through `.env`; both are explicitly pinned in the defaults.
 
-## Security
+`docker compose down --volumes` permanently deletes this environment's named settings, credentials, caches and OpenCode data. The host `src/` bind mount remains. Files in unmounted container paths disappear on replacement even without `--volumes`.
 
-Use this environment on your local machine only. Keep published ports bound
-to localhost; do not expose the editor or development ports to the internet
-or an untrusted network.
+## Local-only use
 
-## AI coding CLIs
-
-Claude Code (`claude`) and OpenAI Codex (`codex`) are installed as the non-root developer user. Run either command from your project directory in the editor terminal. Sign in separately for each environment; for Codex in a container use `codex login --device-auth`, then follow the link and code on your host browser. Run `claude` and follow its sign-in instructions.
-
-Their settings, sessions and Linux file-based credentials live under `/home/developer/.config/claude` and `/home/developer/.config/codex` in the existing `developer-config` volume. Container replacement preserves them; `docker compose down --volumes` deletes them. Credentials are not built into images or committed to this repository.
-
-To add the tools to an existing environment or refresh the installed versions, run `docker compose build --pull --no-cache` followed by `./start.sh`. Claude Code and Codex install their latest release. These are terminal tools available through both editors; no AI editor extensions are installed.
-
-## Python available in this environment
-
-Includes a complete Python 3 standard library, development headers, pip, venv, and the standalone `uv`/`uvx` tools. `python` and `python3` are available. The Python environment uses the full official Python 3.14 image; the other environments use their base distribution's Python version.
-
-Create project environments inside your mounted source folder, as `developer`:
-
-```sh
-python -m venv .venv
-. .venv/bin/activate
-python -m pip install --upgrade pip setuptools wheel
-# Install your project's dependencies with pip, or use uv:
-uv pip install -r requirements.txt
-# For a project with pyproject.toml and uv.lock:
-uv sync
-```
-
-Use a project virtual environment for package installation; system Python and bundled tool environments are image-managed. pip and uv caches persist in named volumes. Rebuild with `docker compose build --pull`, then run `./start.sh` to apply these additions to an existing container.
-
-Git, GitHub CLI (`gh`), Azure CLI (`az`), AWS CLI v2 (`aws`), Google Cloud CLI (`gcloud`, `gsutil`, `bq`), and Terraform CLI (`terraform`) are included. Run `docker compose build --pull --no-cache` and then `./start.sh` to refresh tools from upstream.
-
-Terraform installs the current stable release from HashiCorp for the container's CPU architecture, with its archive checked against the published SHA-256 sums. Run `terraform init`, `terraform validate`, and `terraform plan` from your project directory under `/workspace/src`. Use your cloud provider's normal credentials; none are embedded in the image. Refresh Terraform with the full rebuild command above.
-
-## Editor mode and OpenCode
-
-Use one configuration for both editor flavors:
-
-```sh
-./start.sh --browser  # Run code-server (default)
-./start.sh --desktop  # Keep the dev container running for desktop VS Code
-```
-
-These switches save `EDITOR_MODE=browser` or `EDITOR_MODE=desktop` in `.env`. You can also edit that setting directly, then run `./start.sh`. Mode changes recreate the container without rebuilding an unchanged image. Source files and named volumes are shared between modes.
-
-In desktop mode code-server is not started. Open this environment folder in host VS Code and choose **Dev Containers: Reopen in Container**. Its existing configuration honors the saved `.env` choice. The browser port mapping remains reserved, but there is no HTTP editor listening; application/frontend ports keep working. Both modes retain the same SDKs, AI CLIs, Git and cloud tools.
-
-Terraform is included via the shared installer. OpenCode is installed using its official native installer; run `opencode` from your project terminal and configure your model/provider account there. OpenCode configuration persists in the existing `developer-config` volume and its data in `opencode-data`. Rebuild with `docker compose build --pull --no-cache`, then start your chosen mode to install/refresh the CLI. No provider credentials are embedded in images.
+Use on your local machine only. Keep localhost port bindings and do not expose editors, apps or debuggers to an untrusted network. Desktop mode stops code-server but does not add a security boundary around other running applications or Docker access.

@@ -6,17 +6,18 @@ container, keeping its SDKs, compilers, editors, and dependencies off your host.
 
 Every language environment includes a full Python 3 installation with pip, venv,
 uv and uvx, plus Git, Git LFS, Terraform, OpenCode, Claude Code CLI, OpenAI Codex CLI,
-a browser-based VS Code editor
-(code-server), and configuration for connecting desktop Microsoft VS Code.
+an optional browser-based VS Code editor (code-server), and configuration for
+connecting desktop Microsoft VS Code. Browser mode is the default; desktop mode
+keeps the development container running without starting code-server.
 You can run environments independently or alongside one another.
 
 ## Requirements
 
 - Docker Desktop on macOS/Windows, or Docker Engine on Linux.
 - Docker Compose 2.17 or newer and BuildKit, for shared build contexts and `docker compose up --wait`.
-- A browser for code-server.
-- Optional: Microsoft VS Code with the **Dev Containers** extension for the
-  desktop editing experience.
+- A browser for browser mode.
+- Microsoft VS Code with the **Dev Containers** extension for desktop mode.
+- Bash for `start.sh` (WSL or a Bash-compatible shell on Windows).
 - An internet connection for the initial image build and tool/extension downloads.
 
 ## Quick start
@@ -24,12 +25,17 @@ You can run environments independently or alongside one another.
 ```sh
 git clone https://github.com/bee-raph/dev-environments.git
 cd dev-environments/dev/python
-./start.sh
+./start.sh --browser
+# Or use only host VS Code:
+# ./start.sh --desktop
 ```
 
-Choose any environment folder under `dev/` instead of `python`. On Windows, use WSL or a
-Bash-compatible shell for the launch script. Alternatively, configure `.env`
-from `.env.example`, then run `docker compose up -d --build --wait`.
+Choose any environment folder under `dev/` instead of `python`. `./start.sh`
+reuses the mode saved in `.env`; a fresh environment defaults to browser mode.
+Alternatively, prepare `.env` from `.env.example` and use
+`docker compose up -d --build --wait`. On Linux, set `DEV_UID`/`DEV_GID` yourself
+when copying the example; automatic host-ID selection only happens when the
+launch script creates `.env`.
 
 The launch script creates the source folder and an optional `.env` configuration,
 builds the image, starts the container, and waits for the selected editor mode to become healthy.
@@ -38,7 +44,7 @@ layers and persistent caches.
 
 ## Available environments
 
-| Folder | Main tools | Browser editor | Application host port | Frontend host port |
+| Folder | Main tools | Browser editor (browser mode) | Application host port | Frontend host port |
 | --- | --- | --- | --- | --- |
 | [dev/dotnet](dev/dotnet/README.md) | .NET 10 SDK, ASP.NET Core, EF CLI, Node.js | [8080](http://localhost:8080) | 5000 | 5173 |
 | [dev/dotnet11](dev/dotnet11/README.md) | .NET 11 SDK, ASP.NET Core, EF 11 CLI, Node.js | [8088](http://localhost:8088) | 5001 | 5180 |
@@ -66,13 +72,19 @@ cloud/      Cloud emulators: floci-aws, floci-azure, floci-gcp
 Run `./start.sh` inside the individual environment folder, such as
 `dev/python`, `services/mongodb`, or `cloud/floci-aws`.
 
+Each environment's `compose.yaml` supplies `dev/common` as the `dev_common`
+additional build context. Keep the repository layout and build through Compose;
+a standalone copy of a language folder or bare `docker build .` omits that
+shared installer context. Image and runtime defaults are configured values,
+not guarantees that a language's selected major is its newest release.
+
 Each language environment contains:
 
 ```text
 Dockerfile                    SDKs, tools, editor and bundled extensions
 compose.yaml                  Container, ports, source mount and persistent volumes
 start.sh                      Build and launch helper
-entrypoint.sh                 Editor startup and initial extension setup
+entrypoint.sh                 Mode selection, readiness and browser extension seeding
 .env.example                  Optional port, image and user-ID configuration
 .devcontainer/devcontainer.json  Desktop VS Code connection settings
 src/                          Your source code, stored on the host
@@ -87,14 +99,15 @@ this environment configuration repository. Do not commit application code into
 this repository unless that is intentional.
 
 Docker named volumes retain editor settings/extensions, Git configuration, and
-language package/build caches when containers are replaced. Each environment
+language package/build caches and OpenCode data when containers are replaced. Each environment
 has its own Compose project name, network, and volumes. Containers run as a
 non-root `developer` user. On Linux, the launch script uses the host UID/GID
 when creating `.env`, allowing writes to the source mount.
 
 ## Connect desktop Microsoft VS Code
 
-1. Start the desired environment using its `./start.sh`.
+1. Start the desired environment using `./start.sh --desktop`. Use browser mode
+   if you also want code-server running.
 2. Install Microsoft VS Code on the host and install **Dev Containers**
    (`ms-vscode-remote.remote-containers`).
 3. Open the environment folder, such as `dev-environments/dev/python`, in VS Code.
@@ -115,7 +128,7 @@ may differ between the editors; both edit the same mounted source files.
 
 ## Connect through a browser
 
-After startup, open the environment's browser editor URL from the table above.
+Run `./start.sh --browser`, then open the environment's editor URL from the table above.
 The editor opens `/workspace/src`. Use its integrated terminal to clone
 repositories, install project dependencies, run tests, and start applications.
 
@@ -153,16 +166,18 @@ git config --global user.name "Your Name"
 git config --global user.email "you@example.com"
 ```
 
-Global Git configuration persists in the config volume. Configure credentials
-inside the environment as needed; host SSH keys and Git credentials are not
-automatically mounted.
+Global Git configuration persists in `developer-config` at `.config/git`.
+Configure credentials inside the environment; host SSH keys and Git credentials
+are not automatically mounted. Other tools' persistence depends on the paths
+listed in [CLI credentials](#cli-credentials-and-persistence).
 
 ## Configure and maintain an environment
 
 Run these commands from the chosen environment folder:
 
 ```sh
-# Customize ports and base image before launch:
+# On a fresh checkout only: customize ports and base image before launch.
+# Do not overwrite an existing .env:
 cp .env.example .env
 # Edit .env, then start:
 ./start.sh
@@ -189,8 +204,11 @@ can also be configured there. Use project dependency files and lockfiles for
 application reproducibility.
 
 `docker compose down --volumes` removes persistent editor settings and caches.
-Source files in the host `src/` folder remain. Container packages installed
-manually are lost on replacement; add permanent tools to the Dockerfile.
+Source files in the host `src/` folder remain. Unmounted container files,
+manual package/tool installations and running processes are lost on replacement,
+including a mode change. Add permanent tools to the Dockerfile. Desktop VS Code's
+remote server/extensions directory is not mounted; extensions declared in
+`.devcontainer` can be installed again on a new container.
 
 ## Security
 
@@ -220,7 +238,7 @@ the language environments and retain their data in named volumes.
 Run `./start.sh` inside a service folder. The script creates `.env` with generated
 credentials, creates the shared `dev-services` network, and waits for readiness.
 Every service uses username **developer** and stores its password under
-`DEVELOPER_PASSWORD` in its own `.env`. MySQL and SQL Server also store separate
+`DEVELOPER_PASSWORD` in its own `.env`. MySQL, SQL Server and SQL Edge also store separate
 bootstrap administrator passwords. Actual `.env` files are excluded from Git.
 
 To connect a running language environment, run this from its folder:
@@ -251,13 +269,51 @@ Run `./start.sh` in each folder under `cloud/`. These emulators share `dev-servi
 
 ## AI coding assistants
 
-All environments under `dev/` include `claude` and `codex`. Start either from your project directory in the container terminal. For Codex, use `codex login --device-auth` and complete sign-in in your host browser; device-code login must be enabled for your account/workspace. For Claude Code, run `claude` and follow its sign-in instructions. Your own account or API access is required.
+All eight environments include `claude`, `codex`, and `opencode`, installed as
+`developer`. Run them from your project folder in either editor's container
+terminal and configure your own account/provider. For Codex's container sign-in,
+use `codex login --device-auth` and complete the link/code flow in your host
+browser; account/workspace permission for device sign-in may be needed. Run
+`claude` or `opencode` and follow the tool's sign-in/provider setup.
 
-AI configuration, sessions and file-based credentials persist separately for each environment in its existing `developer-config` volume, under `.config/claude` and `.config/codex`. Removing that volume deletes them. No account credentials are included in images or Git. Native binaries are installed as `developer`, outside mounted settings directories.
+`CODEX_HOME` is `.config/codex`, `CLAUDE_CONFIG_DIR` is `.config/claude`, and
+OpenCode settings use `.config/opencode`: these are inside `developer-config`.
+OpenCode's `.local/share/opencode` data has its own `opencode-data` volume.
+No provider credentials are included in images or mounted from the host by these Compose files. Deleting
+these volumes deletes the corresponding settings, sessions and stored credentials.
+Native CLI binaries live outside the mounted settings paths and are installed
+again when the image is rebuilt. AI editor extensions are not bundled.
 
-After pulling these changes, rebuild your chosen environment with `docker compose build --no-cache`, then run `./start.sh`. This also refreshes installed CLI releases. CLI tools are available in both desktop VS Code and code-server terminals.
+## CLI credentials and persistence
 
-Official installation and sign-in documentation: [Codex CLI](https://learn.chatgpt.com/docs/codex/cli), [Codex authentication](https://learn.chatgpt.com/docs/auth), and [Claude Code setup](https://code.claude.com/docs/en/setup).
+| Tool/data | Default container location | Persisted by this configuration? |
+| --- | --- | --- |
+| Git global configuration | `~/.config/git/config` | Yes, `developer-config` |
+| GitHub CLI configuration | `~/.config/gh` | Yes, `developer-config` |
+| Google Cloud CLI configuration | `~/.config/gcloud` | Yes, `developer-config` |
+| Codex / Claude / OpenCode settings | `~/.config/codex`, `~/.config/claude`, `~/.config/opencode` | Yes, `developer-config` |
+| OpenCode data | `~/.local/share/opencode` | Yes, `opencode-data` |
+| AWS config/credentials | `~/.aws` | No |
+| Azure CLI configuration | `~/.azure` | No |
+| code-server settings/extensions | `~/.local/share/code-server` | Yes, `editor-data` |
+| Desktop VS Code remote server/extensions | `~/.vscode-server` | No |
+
+These are the defaults; custom CLI settings can select different paths. To use
+mounted paths for AWS/Azure in your current container terminal, set them before
+signing in or configuring credentials:
+
+```sh
+export AZURE_CONFIG_DIR="$HOME/.config/azure"
+export AWS_CONFIG_FILE="$HOME/.config/aws/config"
+export AWS_SHARED_CREDENTIALS_FILE="$HOME/.config/aws/credentials"
+mkdir -p "$HOME/.config/azure" "$HOME/.config/aws"
+```
+
+The files persist there, but terminal exports do not persist into new terminals.
+Repeat the exports or add the variables to your Compose service environment for
+a lasting selection. Do not commit credentials to the repository. These Compose files do not automatically mount host credential folders or SSH
+keys, or forward cloud credential environment variables. Host IDE authentication
+integrations are separate from this configuration. Named volumes are local persistence, not backups.
 
 ## Kafka stack
 
@@ -277,7 +333,7 @@ Create a project `.venv` inside your mounted source folder with `python -m venv 
 
 `dev/dotnet11` copies the .NET environment with the stable .NET 11 SDK and EF CLI. Its editor is http://localhost:8088, application port is 5001, and frontend port is 5180. It includes the same Python, uv, AI CLIs, Node.js, Git and desktop VS Code support, with separate source and named volumes. If an existing `.env` still pins RC3, remove the overrides or set `DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:11.0` and `EF_VERSION=11.*` in its `.env`, then rebuild with `docker compose build --pull --no-cache` and launch with `./start.sh`. See its [README](dev/dotnet11/README.md) for project SDK/package migration details.
 
-Every development environment also includes upstream Git, GitHub CLI, Azure CLI, AWS CLI v2, Google Cloud CLI, and Terraform CLI. These and the coding CLIs resolve their current releases at build time; use `docker compose build --pull --no-cache` and `./start.sh` from the chosen environment to refresh them. Builds support native Linux ARM64 and AMD64.
+Every development environment also includes upstream Git, GitHub CLI, Azure CLI, AWS CLI v2, Google Cloud CLI, and Terraform CLI. These and the coding CLIs resolve their current releases at build time; use `docker compose build --pull --no-cache` and `./start.sh` from the chosen environment to refresh them. The shared installer accepts Linux ARM64 and AMD64; compatible base images select the host architecture by default.
 
 ## Terraform CLI
 
@@ -285,8 +341,46 @@ All eight development environments include HashiCorp Terraform CLI. The shared i
 
 ## Choose browser or desktop-only editing
 
-All eight development environments support an `EDITOR_MODE` switch, without duplicate Dockerfiles or separate source folders. From your environment folder, run `./start.sh --browser` to enable code-server or `./start.sh --desktop` to run a keep-alive container for host VS Code. The script saves the selection in `.env`, so subsequent launches and **Dev Containers: Reopen in Container** use the same mode. Plain `./start.sh` uses the saved mode; a fresh environment defaults to browser mode.
+All eight development environments use the same image and Compose project for
+both modes; no folders or source trees need to be duplicated:
 
-Desktop mode does not start code-server. Open the environment folder in host VS Code and choose **Dev Containers: Reopen in Container**. The localhost browser-port mapping remains reserved but has no editor listener; application ports remain available. Modes share source files, SDKs, settings and named volumes. Browser-only extension seeding is skipped in desktop mode, and health checks adapt to the selected mode.
+```sh
+./start.sh --browser  # Save EDITOR_MODE=browser; run code-server
+./start.sh --desktop  # Save EDITOR_MODE=desktop; run the keep-alive process
+./start.sh            # Reuse the saved mode; browser on a fresh checkout
+```
 
-Terraform and OpenCode are available in every development environment, alongside Codex and Claude Code. Run `opencode` in your project terminal and configure your provider separately. OpenCode uses the official native installer, persistent `.config/opencode` settings and a dedicated `opencode-data` volume. Refresh installed tools with `docker compose build --pull --no-cache`, then start your chosen mode. Use these environments on your local machine only.
+| Behavior | Browser | Desktop |
+| --- | --- | --- |
+| Main process, under tini | code-server | `sleep infinity` |
+| Browser editor | Running | Not started |
+| Desktop VS Code / Dev Containers | Available | Available |
+| Health check | Browser HTTP endpoint | Desktop startup marker |
+| Application/frontend/debug mappings | Available | Available |
+| SDKs, CLI tools, mounted source and named volumes | Shared | Shared |
+
+`start.sh` writes the choice to `.env`, then calls Compose with `--build --wait`.
+An exported `EDITOR_MODE` takes precedence over `.env`, following Compose's normal
+variable handling. Switching to a different mode changes container environment
+settings, so Compose recreates the container. Running shells, app servers and
+other processes stop, and unmounted files are lost. Source bind mounts and named
+volumes survive. The switch itself needs no different image, although `--build`
+still runs and can reuse unchanged build layers. Re-selecting the existing mode
+with an unchanged configuration does not inherently require recreation.
+
+In desktop mode, open the environment folder in host VS Code and choose
+**Dev Containers: Reopen in Container**. The existing Dev Container configuration
+uses the same Compose file and saved mode. The code-server package remains
+installed, and its localhost port mapping remains reserved, but no browser editor
+is listening. Application ports remain available for servers you start yourself.
+Closing host VS Code leaves the container running.
+
+Browser extension seeding runs only in browser mode and only once per
+`editor-data` volume. A newer image does not automatically replace that volume's
+existing browser extensions. Update them in the browser editor, or deliberately
+reset/reseed the editor volume if you want a fresh bundled set. Desktop extensions
+are managed separately. Manual `dev-services` network attachments must be repeated
+after recreation, including mode switches, unless declared in Compose.
+
+Use these environments on your local machine only. Desktop mode does not create
+a new security boundary around Docker access or application servers.
